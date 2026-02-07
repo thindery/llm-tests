@@ -1,0 +1,15 @@
+{
+  "name": "openclaw-daily-version-check",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 0,12 * * *",
+    "tz": "America/Chicago"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Daily OpenClaw Update Check\n\n1. Check current OpenClaw version by running: openclaw status or gateway config.get\n2. Run openclaw update: gateway action=update.run\n3. Check version after update\n4. Post results to Discord channel #daily with:\n   - Current version (before)\n   - Update attempt status\n   - New version (after)\n   - Any important notes\n\nFormat:\n🦞 Daily OpenClaw Update Report\n\n**Before:** v2026.X.X\n**Status:** Updated / Already Latest / Error\n**After:** v2026.X.X\n\n[any notes about the update]",
+    "deliver": true,
+    "channel": "1468265485031182491"
+  }
+}

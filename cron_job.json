@@ -1,0 +1,21 @@
+{
+  "name": "hourly-pm-checkin",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 * * * *",
+    "tz": "America/Chicago"
+  },
+  "sessionTarget": "isolated",
+  "wakeMode": "next-heartbeat",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "🦞 Hourly PM Check-In Report\n\n**Your task:**\n1. Check all active projects and their status\n2. Review any TODO files (REMY-TODO.md, SKILLS-TODO.md, project-specific TODOs)\n3. Identify what each project PM should be working on\n4. Generate a brief status report\n\n**Projects to check:**\n- Pantry-Pal (what's the next milestone?)\n- Remy-Finance (progress on dashboard?)\n- Blog/Content (what posts are queued?)\n- Any other active ventures\n\n**Post to Discord #status channel:**\n- Executive summary of all projects\n- Any blockers or items needing thindery's attention\n- Next actions for each project\n\nKeep it brief but informative. This runs every hour.",
+    "model": "ollama/kimi-k2.5:cloud",
+    "timeoutSeconds": 120
+  },
+  "delivery": {
+    "mode": "announce",
+    "channel": "discord",
+    "to": "#status"
+  }
+}

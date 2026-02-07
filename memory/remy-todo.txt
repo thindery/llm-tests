@@ -1,0 +1,10 @@
+(A) Research Twitter OAuth setup for bots +Twitter +Research
+(B) Document simple OAuth flow for thindery +Twitter +Docs
+(C) Test @RemyLobster posting once tokens received +Twitter +Test
+(D) Research Nitter as free Twitter alternative +Twitter +Research
+(E) Check developer programs for API credits +Twitter +Research
+(F) Find cheaper API proxies/services +Twitter +Research
+(G) Test ai-code-review on sample PR +Dev +Test
+(H) Learn git-workflows advanced features +Dev +Learn
+(I) Research Google Calendar API integration +Calendar +Research
+(J) Plan daily event reminders system +Calendar +Planning

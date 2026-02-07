@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "ecda2c24-e73a-4c4c-a9e7-0cbb818eb08d",
+      "name": "wake-now-test-v2",
+      "enabled": true,
+      "createdAtMs": 1770408100558,
+      "updatedAtMs": 1770408144175,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 60000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 **WAKE NOW TEST V2 — SUCCESS!** Cron is working!",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770427849788
+      }
+    },
+    {
+      "id": "0404f10a-ce59-4dd2-bb77-4b6dd2d148b9",
+      "name": "five-minute-test-v2",
+      "enabled": true,
+      "createdAtMs": 1770408111578,
+      "updatedAtMs": 1770408144182,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 300000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 **5-Min Test V2** — {{current_time}} — Cron system operational",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770428089788
+      }
+    },
+    {
+      "id": "dc11772d-18c2-4936-a5fa-4d7e2ae8d253",
+      "name": "daily-morning-standup-v2",
+      "enabled": true,
+      "createdAtMs": 1770408125847,
+      "updatedAtMs": 1770408144189,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 86400000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 Good morning! Daily Standup — 7am CST. Check REMY-TODO.md, THINDERY-TODO.md, report venture status to #daily.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770514189788
+      }
+    },
+    {
+      "id": "b54dc049-9414-4480-8ffd-bfac88ebe1e7",
+      "name": "evening-wrap-up-v2",
+      "enabled": true,
+      "createdAtMs": 1770408126995,
+      "updatedAtMs": 1770408144151,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 19 * * *",
+        "tz": "America/Chicago"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🌆 Evening Wrap-Up — 7pm CST. Review wins, blockers, tomorrow priorities. Post to #daily.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770512400000
+      }
+    },
+    {
+      "id": "033459f8-254e-44e4-be27-a26b3e0ecf47",
+      "name": "hourly-status-v2",
+      "enabled": true,
+      "createdAtMs": 1770408128095,
+      "updatedAtMs": 1770408144165,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 Hourly status check — checking all 5 ventures.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770431389788
+      }
+    },
+    {
+      "id": "ff5bc455-61b0-413c-b135-6f32aa4486d1",
+      "name": "hourly-pulse-v2",
+      "enabled": true,
+      "createdAtMs": 1770408213983,
+      "updatedAtMs": 1770408213983,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 Hourly pulse check — Ventures: All systems nominal.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770431389788
+      }
+    },
+    {
+      "id": "520969c7-94d6-431d-a4a6-df150fdba025",
+      "name": "openclaw-daily-version-check-v2",
+      "enabled": true,
+      "createdAtMs": 1770408215077,
+      "updatedAtMs": 1770408215077,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 43200000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 Daily OpenClaw Update: Check version, run update if needed, report to #daily.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770470989788
+      }
+    },
+    {
+      "id": "5b8dee82-5fe3-4251-87c4-45a9c57bc8f0",
+      "name": "remy-todo-review-v2",
+      "enabled": true,
+      "createdAtMs": 1770408216168,
+      "updatedAtMs": 1770408216168,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 86400000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 Daily Todo Review: Check REMY-TODO.md and SKILLS-TODO.md, prioritize items, post needs to #daily.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770514189788
+      }
+    },
+    {
+      "id": "55ced0d9-99a4-4db4-8087-addb197f1f17",
+      "name": "reddit-fix-test-v2",
+      "enabled": true,
+      "createdAtMs": 1770408217264,
+      "updatedAtMs": 1770408217264,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 120000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🦞 **Reddit Fix Test V2** — If you see this, the timestamp fix worked!",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468727937145766048"
+      },
+      "state": {
+        "nextRunAtMs": 1770427909788
+      }
+    },
+    {
+      "id": "7f8289e9-22fa-4d28-b9db-6ea48eb8a785",
+      "name": "awesome-openclaw-updater-v2",
+      "enabled": true,
+      "createdAtMs": 1770408218380,
+      "updatedAtMs": 1770408218380,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 3600000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "🤖 Awesome-OpenClaw Hourly Update: Scan clawhub/GitHub for new skills, update README, commit/push if changes found. Post to #awesome-openclaw.",
+        "model": "ollama/kimi-k2.5:cloud"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "discord",
+        "to": "1468861843396235469"
+      },
+      "state": {
+        "nextRunAtMs": 1770431389788
+      }
+    }
+  ]
+}
