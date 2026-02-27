@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # OpenClaw Gateway
+  openclaw-gateway:
+    image: openclaw/gateway:latest
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    networks:
+      - openclaw-network
+    ports:
+      - "127.0.0.1:8080:8080"  # Bind to localhost only - nginx proxies
+    environment:
+      - OPENCLAW_TOKEN=${OPENCLAW_TOKEN}
+      - OPENCLAW_PORT=8080
+      - OPENCLAW_HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: openclaw-nginx
+    restart: unless-stopped
+    networks:
+      - openclaw-network
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - ACME_CHALLENGE=${ACME_CHALLENGE:-}
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      openclaw-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  openclaw-network:
+    driver: bridge
+    name: openclaw-network
+
+volumes:
+  openclaw-data:
+  openclaw-logs:
+  openclaw-nginx-logs:

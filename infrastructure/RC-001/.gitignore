@@ -1,0 +1,24 @@
+# Environment variables
+.env
+
+# SSH Keys
+*.pem
+*.key
+.ssh/
+
+# Server details
+server-details.txt
+
+# Backup files
+*.tar.gz
+backup/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
