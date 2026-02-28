@@ -1,0 +1,50 @@
+[
+  {
+    "given": "user is on the Kanban board",
+    "when": "they click the 'View as Table' link",
+    "then": "they are navigated to /table route showing all tickets in table format",
+    "sort": 0
+  },
+  {
+    "given": "the table view is displayed",
+    "when": "user clicks on a column header",
+    "then": "the table sorts by that column in ascending order and clicking again toggles to descending",
+    "sort": 1
+  },
+  {
+    "given": "the table view is displayed",
+    "when": "sorting is triggered",
+    "then": "the following fields support sorting: ticketNumber, title, status, priority, assignee, createdAt, updatedAt",
+    "sort": 2
+  },
+  {
+    "given": "the table is viewed on any device",
+    "when": "screen width is below desktop breakpoint (768px)",
+    "then": "the table becomes horizontally scrollable, and on desktop+ uses full available width",
+    "sort": 3
+  },
+  {
+    "given": "a user is viewing the table",
+    "when": "they click on any table row",
+    "then": "they navigate to the ticket detail page for that ticket",
+    "sort": 4
+  },
+  {
+    "given": "a user is on the table view",
+    "when": "they click the 'Back to Board' button",
+    "then": "they return to the Kanban board view",
+    "sort": 5
+  },
+  {
+    "given": "existing filters exist for search text, priority, and status",
+    "when": "user applies filters in table view",
+    "then": "the table displays only tickets matching the filter criteria and filter state persists when switching views",
+    "sort": 6
+  },
+  {
+    "given": "tickets are loading or no tickets exist",
+    "when": "the table is loading OR no tickets match filters",
+    "then": "a loading spinner/skeleton is displayed OR an empty state message with option to clear filters is shown",
+    "sort": 7
+  }
+]
