@@ -1,8 +1,9 @@
 /**
- * Chat API Route - Simplified (Elon Cut)
- * Removed: tenant isolation, complex rate limiting, quota management
- * Kept: Simple chat endpoint
+ * Chat API Route - Kimi Integration
+ * Streams responses from Kimi via Ollama
  */
+
+import { createChatCompletionStream, createChatCompletion, type KimiMessage } from '../../../lib/kimi';
 
 // Types for chat requests/responses
 export interface ChatMessage {
@@ -15,6 +16,7 @@ export interface ChatRequest {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  stream?: boolean;
 }
 
 export interface ChatResponse {
@@ -39,35 +41,96 @@ function estimateTokens(messages: ChatMessage[]): number {
   return Math.ceil(text.length / 4) + 50;
 }
 
-// Simple mock LLM - replace with actual Ollama/Kimi client
-async function callLLM(request: ChatRequest): Promise<ChatResponse> {
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-  
-  const lastMessage = request.messages[request.messages.length - 1];
-  const response: ChatResponse = {
-    id: `chat_${Date.now()}`,
-    message: {
-      role: 'assistant',
-      content: `Echo: "${lastMessage.content.substring(0, 100)}..."`,
-    },
-    usage: {
-      promptTokens: estimateTokens(request.messages),
-      completionTokens: 50,
-      totalTokens: estimateTokens(request.messages) + 50,
-    },
-    model: request.model || 'kimi-k2.5',
-  };
-  return response;
+/**
+ * Handle streaming chat request
+ */
+async function handleStreamingChat(
+  request: ChatRequest,
+  controller: ReadableStreamController<Uint8Array>
+): Promise<void> {
+  const encoder = new TextEncoder();
+  let fullContent = '';
+
+  try {
+    // Convert messages to Kimi format
+    const kimiMessages: KimiMessage[] = request.messages.map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    // Stream from Kimi
+    for await (const chunk of createChatCompletionStream(kimiMessages, {
+      model: request.model,
+      temperature: request.temperature,
+      maxTokens: request.maxTokens,
+    })) {
+      fullContent += chunk;
+      
+      // Send chunk as SSE
+      const data = JSON.stringify({ chunk, done: false });
+      controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+    }
+
+    // Send completion
+    const finalData = JSON.stringify({
+      done: true,
+      message: {
+        role: 'assistant',
+        content: fullContent,
+      },
+      usage: {
+        promptTokens: estimateTokens(request.messages),
+        completionTokens: Math.ceil(fullContent.length / 4),
+        totalTokens: estimateTokens(request.messages) + Math.ceil(fullContent.length / 4),
+      },
+    });
+    controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+    controller.close();
+  } catch (error) {
+    const errorData = JSON.stringify({ error: String(error), done: true });
+    controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+    controller.close();
+  }
 }
 
 /**
- * Simple chat handler - no complex rate limiting or tenant isolation
+ * Handle non-streaming chat request
+ */
+async function handleNonStreamingChat(request: ChatRequest): Promise<ChatResponse> {
+  const kimiMessages: KimiMessage[] = request.messages.map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const completion = await createChatCompletion(kimiMessages, {
+    model: request.model,
+    temperature: request.temperature,
+    maxTokens: request.maxTokens,
+  });
+
+  return {
+    id: completion.id,
+    message: {
+      role: 'assistant',
+      content: completion.choices[0]?.message?.content || '',
+    },
+    usage: {
+      promptTokens: completion.usage?.prompt_tokens || estimateTokens(request.messages),
+      completionTokens: completion.usage?.completion_tokens || 0,
+      totalTokens: completion.usage?.total_tokens || estimateTokens(request.messages),
+    },
+    model: completion.model,
+  };
+}
+
+/**
+ * Main chat handler
  */
 export async function handleChat(request: ChatRequest): Promise<ChatResponse> {
   if (!request.messages?.length) {
     throw new Error('Messages required');
   }
-  return callLLM(request);
+  return handleNonStreamingChat(request);
 }
 
 /**
@@ -80,8 +143,31 @@ export async function chatRouteHandler(req: any, res: any): Promise<void> {
       res.status(400).json({ error: 'Messages required', statusCode: 400 });
       return;
     }
-    const response = await handleChat(request);
-    res.json(response);
+
+    if (request.stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const stream = new ReadableStream({
+        start(controller) {
+          handleStreamingChat(request, controller).catch(() => {
+            controller.close();
+          });
+        },
+      });
+
+      const reader = stream.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
+    } else {
+      const response = await handleChat(request);
+      res.json(response);
+    }
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Internal server error', statusCode: 500 });
@@ -89,7 +175,7 @@ export async function chatRouteHandler(req: any, res: any): Promise<void> {
 }
 
 /**
- * Fetch API handler
+ * Fetch API handler with streaming support
  */
 export async function chatFetchHandler(request: Request): Promise<Response> {
   try {
@@ -100,6 +186,27 @@ export async function chatFetchHandler(request: Request): Promise<Response> {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    // If streaming is requested, return a streaming response
+    if (body.stream) {
+      const stream = new ReadableStream({
+        start(controller) {
+          handleStreamingChat(body, controller).catch(() => {
+            controller.close();
+          });
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Non-streaming response
     const response = await handleChat(body);
     return new Response(JSON.stringify(response), {
       status: 200,
@@ -115,4 +222,4 @@ export async function chatFetchHandler(request: Request): Promise<Response> {
 }
 
 // Export for testing
-export { estimateTokens, callLLM };
+export { estimateTokens };
