@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -15,7 +15,9 @@ export function ChatPanel({ initialMessage, dreamContext }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize with system context if dreamContext is provided
   useEffect(() => {
@@ -53,15 +55,19 @@ export function ChatPanel({ initialMessage, dreamContext }: ChatPanelProps) {
     if (initialMessage && messages.length <= (dreamContext ? 2 : 1)) {
       handleSendMessage(initialMessage);
     }
-  }, [initialMessage]);
+  }, [initialMessage, dreamContext, messages.length]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
+
+    // Cancel any ongoing request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
 
     // Add user message
     const userMessage: Message = {
@@ -72,51 +78,108 @@ export function ChatPanel({ initialMessage, dreamContext }: ChatPanelProps) {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setStreamingContent('');
+
+    const conversationMessages = [
+      ...messages.filter(m => m.role !== 'system'),
+      userMessage,
+    ].map(m => ({ role: m.role, content: m.content }));
+
+    // Add system message at the beginning
+    const systemMessage = messages.find(m => m.role === 'system');
+    const apiMessages = systemMessage 
+      ? [{ role: 'system', content: systemMessage.content }, ...conversationMessages]
+      : conversationMessages;
 
     try {
-      // Call the chat API
+      // Call the streaming chat API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [
-            ...messages.filter(m => m.role !== 'system'),
-            userMessage,
-          ].map(m => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
+          stream: true,
+          model: 'kimi-k2.5',
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        throw new Error(`Failed to get response: ${response.status}`);
       }
 
-      const data = await response.json();
-      
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: data.message?.content || 'I apologize, but I am unable to respond at the moment.',
-          id: `assistant-${Date.now()}`,
-        },
-      ]);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let buffer = '';
+
+      // Read the stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            if (data.chunk) {
+              fullContent += data.chunk;
+              setStreamingContent(fullContent);
+            }
+
+            if (data.done) {
+              // Finalize the message
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: data.message?.content || fullContent,
+                  id: `assistant-${Date.now()}`,
+                },
+              ]);
+              setStreamingContent('');
+            }
+          } catch (e) {
+            // Skip malformed chunks or streaming errors
+          }
+        }
+      }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return; // User cancelled
+      }
       console.error('Chat error:', error);
-      // Fallback response if API fails
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: "I'm here to help you build! What specific features would you like to include?",
+          content: "I'm having trouble connecting right now. Please try again in a moment.",
           id: `assistant-${Date.now()}`,
         },
       ]);
     } finally {
       setIsLoading(false);
+      setStreamingContent('');
+      abortControllerRef.current = null;
     }
-  };
+  }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,11 +217,23 @@ export function ChatPanel({ initialMessage, dreamContext }: ChatPanelProps) {
                   : 'bg-gray-100 text-gray-800 rounded-bl-none'
               }`}
             >
-              <p className="text-sm leading-relaxed">{message.content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
             </div>
           </div>
         ))}
-        {isLoading && (
+        
+        {/* Streaming message */}
+        {(isLoading || streamingContent) && streamingContent && (
+          <div className="flex justify-start">
+            <div className="max-w-[80%] rounded-2xl rounded-bl-none px-4 py-3 bg-gray-100 text-gray-800">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{streamingContent}</p>
+              <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1" />
+            </div>
+          </div>
+        )}
+        
+        {/* Loading indicator (when no content yet) */}
+        {isLoading && !streamingContent && (
           <div className="flex justify-start">
             <div className="bg-gray-100 rounded-2xl rounded-bl-none px-4 py-3">
               <div className="flex items-center gap-2">

@@ -13,15 +13,45 @@ if [[ "$PWD" != *"/projects/remy-tracker"* ]]; then
 fi
 ```
 
+## 🚨 CRITICAL: BRANCH WORKFLOW (MANDATORY)
+
+**ONE TICKET = ONE BRANCH. NO EXCEPTIONS.**
+
 ### Dev Task Startup Protocol
 
 1. **Navigate to repo:** `cd ~/projects/remy-tracker`
 2. **Verify location:** Run `pwd` and confirm output includes `/projects/remy-tracker`
 3. **Check git status:** Run `git status` to verify it's a valid git repo
-4. **Create branch:** Create a feature branch before making changes
-5. **Commit changes:** Always use `git add` + `git commit` with descriptive messages
+4. **CREATE FEATURE BRANCH (REQUIRED):**
+   ```bash
+   # Source Ralph helpers
+   source ~/.openclaw/workspace/skills/ralph/ralph-helper.sh
+   
+   # Create and checkout feature branch
+   ralph-branch TICKET-XXX "short-description"
+   # Example: ralph-branch TASK-078 "landing-dashboard"
+   ```
+5. **Verify branch:** Run `git branch` and confirm you're on `feature/TICKET-XXX-*`
+6. **Do ALL work on this branch**
+7. **Commit and push regularly**
 
-**DO NOT PROCEED** if any verification step fails. Abort and report the issue.
+### Branch Rules (ENFORCED)
+
+❌ **FORBIDDEN - Will be rejected:**
+- Working directly on `main` or `master`
+- Working on existing/old branches
+- Working on `TASK-077-stripe-integration` (mixing features)
+- Mixing multiple tickets on one branch
+- Keeping work local for extended periods
+
+✅ **REQUIRED:**
+- Branch name format: `feature/TICKET-XXX-kebab-description`
+- Branch created BEFORE any code changes
+- Push to origin after every commit: `git push origin feature/TICKET-XXX-*`
+- Commit messages prefixed with ticket: `TICKET-XXX: what was changed`
+- Only ONE ticket per branch
+
+**DO NOT PROCEED** if branch creation fails. Abort and report the issue.
 
 ---
 
@@ -40,16 +70,35 @@ You are a Development Agent focused on writing code, implementing features, and 
 
 ### At Task Start
 
-1. Read relevant code context from the codebase
-2. Understand the existing architecture
-3. Clarify any ambiguities before starting work
+1. **Create feature branch (REQUIRED):** Use `ralph-branch` helper
+2. Read relevant code context from the codebase
+3. Understand the existing architecture
+4. Clarify any ambiguities before starting work
 
-### During Work
+### During Work - Commit & Push Protocol
+
+**Commit frequently (every 30-60 minutes of work):**
+```bash
+git add .
+git commit -m "TICKET-XXX: what was changed"
+```
+
+**Push to origin after EVERY commit:**
+```bash
+git push origin feature/TICKET-XXX-description
+```
+
+**Why push frequently:**
+- User can see progress in GitHub
+- Work is backed up
+- Enables code review during development
+- Shows visible PR branches
 
 1. Write the minimal code needed to solve the problem
 2. Follow existing patterns in the codebase
 3. Add comments explaining complex logic
 4. Test your changes when possible
+5. **Commit and push after every logical chunk of work**
 
 ### AFTER WORK: Auto-Advance Phase (MANDATORY)
 

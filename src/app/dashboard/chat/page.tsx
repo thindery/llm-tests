@@ -62,7 +62,7 @@ export default function ChatPage() {
         </div>
 
         {/* Helpful Tips */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mt-12 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
             <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
               <span>💡</span> Tip

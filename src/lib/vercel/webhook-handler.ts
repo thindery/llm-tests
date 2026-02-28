@@ -71,13 +71,10 @@ export interface SiteRelease {
   git_branch: string;
   status: 'pending' | 'building' | 'ready' | 'error' | 'canceled' | 'succeeded' | 'failed';
   custom_domain_url: string | null;
-<<<<<<< HEAD
   updated_at?: string;
   deployed_at?: string;
   url?: string;
   error_message?: string;
-=======
->>>>>>> origin/main
 }
 
 // Webhook processing result
@@ -113,15 +110,9 @@ function createSupabaseClient(): SupabaseClient {
  * (Optional - if using webhook verification)
  */
 export function verifyWebhookSignature(
-<<<<<<< HEAD
   _payload: string,
   _signature: string,
   _secret: string
-=======
-  payload: string,
-  signature: string,
-  secret: string
->>>>>>> origin/main
 ): boolean {
   // In production, implement proper signature verification
   // Using crypto.verify with the Vercel webhook secret
@@ -315,11 +306,7 @@ async function updateCustomDomainUrl(
   supabase: SupabaseClient,
   releaseId: string,
   site: Site,
-<<<<<<< HEAD
   _deployment: VercelWebhookPayload['payload']['deployment']
-=======
-  deployment: VercelWebhookPayload['payload']['deployment']
->>>>>>> origin/main
 ): Promise<void> {
   if (site.custom_domain) {
     const customUrl = `https://${site.custom_domain}`;
