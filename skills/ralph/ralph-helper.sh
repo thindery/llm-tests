@@ -63,6 +63,19 @@ ralph-create() {
     echo "   Moving to In Dev..."
     remy move "$ticket_num" --to "In Dev" --role=pm > /dev/null 2>&1 || true
     
+    # Step 7: Create feature branch (CRITICAL for proper workflow)
+    echo "   Creating feature branch..."
+    local branch_name="feature/${ticket_num}-$(echo "$title" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-30)"
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        git checkout -b "$branch_name" > /dev/null 2>&1
+        echo "   Branch: $branch_name"
+        echo ""
+        echo "⚠️  IMPORTANT: Agents MUST work on this branch, NOT main!"
+        echo "   Push regularly: git push -u origin $branch_name"
+    else
+        echo "   ⚠️  Not in a git repository - branch creation skipped"
+    fi
+    
     echo ""
     echo "✅ $ticket_num created with Ralph workflow!"
     echo "   View: http://localhost:3474/ticket/$ticket_num"
@@ -81,6 +94,61 @@ ralph-phase() {
 # Function: Check status
 ralph-status() {
     "$RALPH_SKILL_DIR/ralph-status.sh" "$@"
+}
+
+# 🔥 BRANCH WORKFLOW: Create feature branch for ticket (REQUIRED)
+# Usage: ralph-branch TICKET-XXX "short-description"
+ralph-branch() {
+    local ticket="$1"
+    local description="$2"
+    
+    if [[ -z "$ticket" || -z "$description" ]]; then
+        echo "Usage: ralph-branch TICKET-XXX 'short-description'"
+        echo "Example: ralph-branch TASK-078 'landing-dashboard'"
+        return 1
+    fi
+    
+    # Ensure we're in a git repo
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "❌ Not in a git repository"
+        return 1
+    fi
+    
+    # Create branch name
+    local branch_name="feature/${ticket}-$(echo "$description" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr '_' '-' | cut -c1-40)"
+    
+    # Check if branch exists
+    if git show-ref --verify --quiet "refs/heads/$branch_name"; then
+        echo "⚠️  Branch $branch_name already exists, checking out..."
+        git checkout "$branch_name"
+        return 0
+    fi
+    
+    # Create and checkout new branch from main
+    git fetch origin main > /dev/null 2>&1
+    git checkout -b "$branch_name" origin/main || git checkout -b "$branch_name"
+    git push -u origin "$branch_name" 2>/dev/null || echo "   (push when ready)"
+    
+    echo "✅ Created branch: $branch_name"
+    echo ""
+    echo "⚠️  CRITICAL WORKFLOW RULES:"
+    echo "   1. Do ALL work on this branch"
+    echo "   2. Commit regularly: git commit -m 'TICKET-XXX: what was done'"
+    echo "   3. Push frequently: git push origin $branch_name"
+    echo "   4. NEVER commit to main directly"
+    echo "   5. NEVER mix multiple tickets on one branch"
+    
+    # Add commit-msg hook for ticket reference
+    local hook_file="$(git rev-parse --git-dir)/hooks/prepare-commit-msg"
+    if [[ ! -f "$hook_file" ]]; then
+        echo '#!/bin/bash' > "$hook_file"
+        echo 'BRANCH=$(git symbolic-ref --short HEAD)' >> "$hook_file"
+        echo 'TICKET=$(echo "$BRANCH" | grep -oE "[A-Z]+-[0-9]+" | head -1)' >> "$hook_file"
+        echo 'if [[ -n "$TICKET" && -n "$2" && "$2" != "merge" ]]; then' >> "$hook_file"
+        echo '  echo "$TICKET: $(cat $1)" > $1' >> "$hook_file"
+        echo 'fi' >> "$hook_file"
+        chmod +x "$hook_file"
+    fi
 }
 
 # 🔥 TASK-042: Auto-Phase Advance Functions
@@ -114,5 +182,5 @@ ralph-review-complete() {
     "$RALPH_SKILL_DIR/auto-phase-advance" review-complete "$@"
 }
 
-export -f ralph-create ralph-ac ralph-phase ralph-status
+export -f ralph-create ralph-ac ralph-phase ralph-status ralph-branch
 export -f ralph-auto-advance ralph-status-auto ralph-dev-complete ralph-qa-complete ralph-review-complete
