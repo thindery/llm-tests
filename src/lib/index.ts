@@ -5,8 +5,15 @@
 
 export {
   handleChat,
-  ChatRequest,
-  ChatResponse,
-  ChatError,
-  ChatMessage,
+  type ChatRequest,
+  type ChatResponse,
+  type ChatError,
+  type ChatMessage,
 } from '../app/api/chat/route';
+
+// GitHub & Git Operations - Agent Paige Sites
+export * from './github';
+export * from './git';
+
+// Stripe Integration - Temporarily disabled
+// export * from './stripe';
