@@ -1,0 +1,31 @@
+#!/bin/bash
+# auto-phase-advance - CLI wrapper for the TypeScript automation
+# Usage: auto-phase-advance <command> <ticket-number> [options]
+#
+# Commands:
+#   status <ticket>         Show current phase status
+#   advance <ticket>        Auto-detect and advance current phase
+#   dev-complete <ticket>   Complete Dev+Verify, advance to In QA
+#   qa-complete <ticket>    Complete Test, advance to Ready for Review
+#   review-complete <ticket> Complete Review, close ticket
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TS_FILE="$SCRIPT_DIR/auto-phase-advance.ts"
+
+# Check if TypeScript file exists
+if [ ! -f "$TS_FILE" ]; then
+    echo "❌ TypeScript source not found: $TS_FILE"
+    exit 1
+fi
+
+# Run with ts-node or tsx
+if command -v tsx &> /dev/null; then
+    exec tsx "$TS_FILE" "$@"
+elif command -v ts-node &> /dev/null; then
+    exec ts-node "$TS_FILE" "$@"
+else
+    # Fall back to node with experimental ts
+    exec node --experimental-strip-types --no-warnings "$TS_FILE" "$@"
+fi

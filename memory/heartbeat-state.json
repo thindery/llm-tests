@@ -1,0 +1,53 @@
+{
+  "lastTicketCheck": "2026-02-27T13:35:00",
+  "lastAgentSpawn": "2026-02-27T13:35:00",
+  "stuckTickets": ["TASK-027", "TASK-028"],
+  "notes": "User requested keep low-priority research tickets on list", 
+  "activeAgents": [
+    {"ticket": "RC-NEW-001", "session": "subagent:c3962422-e5b8-4421-ab5d-88c004c6f085", "spawnedAt": "2026-02-27T13:35:00", "focus": "RemyCities"},
+    {"ticket": "TASK-042", "session": "subagent:9e86a695-2701-46d4-9601-60adeaa8fa52", "spawnedAt": "2026-02-27T13:30:00", "focus": "Infrastructure"},
+    {"ticket": "TASK-040", "session": "subagent:8ba2cd29-9970-4bc0-bb03-4c9dd0431409", "spawnedAt": "2026-02-27T13:30:00", "focus": "Infrastructure"}
+  ],
+  "remyCities": {
+    "totalTickets": 21,
+    "completed": 16,
+    "inProgress": 1,
+    "devBacklog": 1,
+    "deferred": 2,
+    "activeTicket": "RC-NEW-001"
+  },
+  "dailyStats": {
+    "ticketsMoved": 6,
+    "agentsSpawned": 3,
+    "ticketsClosed": 5
+  },
+  "thresholds": {
+    "toDevMaxAgeHours": 48,
+    "devBacklogMaxAgeHours": 72,
+    "inDevMaxAgeHours": 96,
+    "toResearchMaxAgeHours": 120
+  },
+  "actions": [
+    {"ticket": "REMY-035", "action": "MOVED_TO_DEV", "time": "2026-02-27T13:35:00"},
+    {"ticket": "TASK-042", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "TASK-040", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-001", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-002", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-003", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-004", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-005", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-NEW-001", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:35:00", "note": "RemyCities focus"},
+    {"ticket": "REMY-035", "action": "HEARTBEAT_MOVE_TO_DEV", "time": "2026-02-27T13:31:00"},
+    {"ticket": "TASK-042", "action": "HEARTBEAT_MOVE_TO_DEV", "time": "2026-02-27T13:31:00"},
+    {"ticket": "TASK-040", "action": "HEARTBEAT_MOVE_TO_DEV", "time": "2026-02-27T13:31:00"}
+    {"ticket": "REMY-035", "action": "MOVED_TO_DEV", "time": "2026-02-27T13:30:00"},
+    {"ticket": "TASK-042", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:30:00"},
+    {"ticket": "TASK-040", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:30:00"},
+    {"ticket": "RC-FIX-001", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-002", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-003", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-004", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-FIX-005", "action": "CLOSED", "time": "2026-02-27T13:35:00"},
+    {"ticket": "RC-NEW-001", "action": "AGENT_SPAWNED", "time": "2026-02-27T13:35:00", "note": "RemyCities focus"}
+  ]
+}

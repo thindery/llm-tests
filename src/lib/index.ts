@@ -15,5 +15,5 @@ export {
 export * from './github';
 export * from './git';
 
-// Stripe Integration - Temporarily disabled
-// export * from './stripe';
+// Stripe Integration
+export * from './stripe';

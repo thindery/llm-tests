@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-02-22",
+  "description": "Ideas backlog for Ralph auto-research pipeline (REMY-003). Ideas are pulled from here when Dev Backlog < 3 tickets.",
+  "ideas": [
+    {
+      "id": "idea-001",
+      "title": "Market Pulse Integration",
+      "description": "Integrate market-pulse skill to track crypto/stock prices and create daily market summaries",
+      "category": "Data/Monitoring",
+      "effort_estimate": "Medium",
+      "value_score": 8,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-002",
+      "title": "Twitter/X Analytics Dashboard",
+      "description": "Auto-collect tweet metrics and build local analytics for X-publisher posts (impressions, engagement)",
+      "category": "Analytics",
+      "effort_estimate": "Medium",
+      "value_score": 7,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-003",
+      "title": "Git Commit Summarizer",
+      "description": "Auto-summarize daily git commits across all projects and post to # dev-log",
+      "category": "Automation",
+      "effort_estimate": "Low",
+      "value_score": 6,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-004",
+      "title": "Health Metrics Dashboard",
+      "description": "Track water intake, sleep, and other health metrics with local dashboard",
+      "category": "Health",
+      "effort_estimate": "Low",
+      "value_score": 5,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-005",
+      "title": "Auto-Documentation Generator",
+      "description": "Scan code changes and auto-update README/docs when functions change",
+      "category": "Documentation",
+      "effort_estimate": "High",
+      "value_score": 7,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-006",
+      "title": "Discord Voice Channel Bot",
+      "description": "Enable voice conversations in Discord voice channels using OpenClaw",
+      "category": "Integration",
+      "effort_estimate": "High",
+      "value_score": 9,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-007",
+      "title": "Weekly Report Generator",
+      "description": "Auto-collect ticket completions, commits, and milestones for weekly thindery summary",
+      "category": "Reporting",
+      "effort_estimate": "Medium",
+      "value_score": 8,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-008",
+      "title": "Local File Search Index",
+      "description": "Build index of all files in ~/projects for fast natural language search",
+      "category": "Search",
+      "effort_estimate": "High",
+      "value_score": 6,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-009",
+      "title": "RSS News Digest",
+      "description": "Daily RSS digest of AI/tech news with auto-summaries",
+      "category": "Content",
+      "effort_estimate": "Low",
+      "value_score": 5,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    },
+    {
+      "id": "idea-010",
+      "title": "Project Dependencies Monitor",
+      "description": "Track outdated npm packages across all projects and create tickets for updates",
+      "category": "Maintenance",
+      "effort_estimate": "Medium",
+      "value_score": 7,
+      "status": "pending",
+      "created_at": "2026-02-22",
+      "completed_at": null
+    }
+  ],
+  "config": {
+    "min_dev_backlog": 3,
+    "auto_create_threshold": 2,
+    "critical_threshold": 1,
+    "priority_by_value": {
+      "9-10": "High",
+      "6-8": "Medium",
+      "1-5": "Low"
+    }
+  }
+}
