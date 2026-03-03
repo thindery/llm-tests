@@ -7,7 +7,7 @@
  * Response: { success: boolean, deploymentId?: string, url?: string }
  */
 
-import { triggerSiteDeploy } from '../../../../lib/vercel/deploy';
+import { triggerSiteDeploy, deployFromGit as _, getCustomDomainUrl as __ } from '../../../../lib/vercel/deploy';
 
 // CORS headers
 const corsHeaders = {

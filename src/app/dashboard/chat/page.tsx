@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ChatPanel from '../../../components/ChatPanel';
+import AuthButton from '../../../components/AuthButton';
 
 export default function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -20,8 +21,9 @@ export default function ChatPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link to="/" className="text-xl font-bold text-gray-900">
-                LLM-Tests
+              <Link to="/" className="flex items-center text-xl font-bold text-gray-900">
+                <span className="text-2xl mr-2">🚀</span>
+                Paige
               </Link>
               <span className="text-gray-300">|</span>
               <Link
@@ -37,6 +39,7 @@ export default function ChatPage() {
                   Building: {dream.substring(0, 50)}{dream.length > 50 ? '...' : ''}
                 </span>
               )}
+              <AuthButton />
             </div>
           </div>
         </div>
@@ -62,7 +65,7 @@ export default function ChatPage() {
         </div>
 
         {/* Helpful Tips */}
-        <div className="mt-12 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
             <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
               <span>💡</span> Tip

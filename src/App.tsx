@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import DashboardPage from './app/dashboard/page';
 import ChatPage from './app/dashboard/chat/page';
+import SignInPage from './app/sign-in/page';
+import SignUpPage from './app/sign-up/page';
+import AuthButton from './components/AuthButton';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 // Landing Page Component
@@ -27,14 +31,26 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <span className="text-6xl mr-2">🚀</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Paige
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <AuthButton />
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="text-center">
-          {/* Logo / Brand */}
-          <div className="mb-8">
-            <span className="text-6xl mb-4 block">🚀</span>
-          </div>
-
           {/* Main Heading */}
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Build Your Dreams with{' '}
@@ -150,8 +166,24 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/dashboard/chat" element={<ChatPage />} />
+      <Route path="/sign-in" element={<SignInPage />} />
+      <Route path="/sign-up" element={<SignUpPage />} />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/dashboard/chat" 
+        element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }

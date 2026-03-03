@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ChatPanel from '../../components/ChatPanel';
+import AuthButton from '../../components/AuthButton';
 
 export default function DashboardPage() {
   const [searchParams] = useSearchParams();
@@ -21,8 +22,9 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link to="/" className="text-xl font-bold text-gray-900">
-                LLM-Tests
+              <Link to="/" className="flex items-center text-xl font-bold text-gray-900">
+                <span className="text-2xl mr-2">🚀</span>
+                Paige
               </Link>
             </div>
             <div className="flex items-center gap-4">
@@ -38,6 +40,7 @@ export default function DashboardPage() {
               >
                 Start Chat
               </Link>
+              <AuthButton />
             </div>
           </div>
         </div>
