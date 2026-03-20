@@ -1,4 +1,4 @@
-"""ML Pipeline for Kalshi Trader - Confidence Scoring, A/B Testing & Model Training.
+"""ML Pipeline for Kalshi Trader - Confidence Scoring, A/B Testing, Model Training & Production Integration.
 
 This module provides:
 - Bayesian confidence scoring for trade suggestions
@@ -7,6 +7,10 @@ This module provides:
 - Model training pipeline (XGBoost/LightGBM)
 - Model registry for version control
 - Metrics tracking and statistical analysis
+- Safety controls with circuit breakers
+- Graduation logic for shadow/live trading
+- Production integration with graceful degradation
+- Configuration system with environment support
 
 Example:
     >>> from kalshi_trader.ml import ConfidenceScorer, ABTesting
@@ -36,6 +40,16 @@ Example:
     >>> from kalshi_trader.ml import ModelRegistry
     >>> registry = ModelRegistry()
     >>> version = registry.register_model("breakout_model", result, model_path)
+    >>>
+    >>> # Safety controls
+    >>> from kalshi_trader.ml import SafetyControls, SafetyConfig
+    >>> safety = SafetyControls(config=SafetyConfig(max_daily_loss=-50.0))
+    >>>
+    >>> # Graduation logic
+    >>> from kalshi_trader.ml import GraduationLogic
+    >>> grad = GraduationLogic()
+    >>> grad.record_trade(SuggestionType.BREAKOUT, pnl=10.0)
+    >>> grad.auto_graduate(SuggestionType.BREAKOUT)
 """
 
 from .confidence_scorer import ConfidenceScorer, SuggestionType
@@ -68,6 +82,46 @@ from .ml_pipeline import (
     create_pipeline,
 )
 
+# Phase 4: Safety Controls & Graduation Logic
+from .safety_controls import (
+    SafetyControls,
+    SafetyConfig,
+    SafetyState,
+    SafetyStatus,
+    CircuitBreakerReason,
+    CircuitBreakerRecord,
+    create_safety_controls,
+)
+from .graduation_logic import (
+    GraduationLogic,
+    GraduationThresholds,
+    StrategyMode,
+    GraduationDirection,
+    GraduationEvent,
+    StrategyPerformance,
+    create_graduation_logic,
+)
+
+# Phase 5: Production Integration & Monitoring
+from .config import (
+    MLConfig,
+    IntegrationConfig,
+    MonitoringConfig,
+    NotificationConfig,
+    MLFeatureLevel,
+    Environment,
+    SlackConfig,
+    EmailConfig,
+    load_config,
+)
+from .trading_integration import (
+    MLEnhancedTrader,
+    MLTradingLoop,
+    TradeSuggestion,
+    MLEnhancedTrade,
+    create_ml_trader,
+)
+
 __all__ = [
     # Phase 2: Confidence & A/B Testing
     "ConfidenceScorer",
@@ -98,6 +152,37 @@ __all__ = [
     "MLPrediction",
     "PipelineMetrics",
     "create_pipeline",
+    # Phase 4: Safety Controls
+    "SafetyControls",
+    "SafetyConfig",
+    "SafetyState",
+    "SafetyStatus",
+    "CircuitBreakerReason",
+    "CircuitBreakerRecord",
+    "create_safety_controls",
+    # Phase 4: Graduation Logic
+    "GraduationLogic",
+    "GraduationThresholds",
+    "StrategyMode",
+    "GraduationDirection",
+    "GraduationEvent",
+    "StrategyPerformance",
+    "create_graduation_logic",
+    # Phase 5: Production Integration
+    "MLConfig",
+    "IntegrationConfig",
+    "MonitoringConfig",
+    "NotificationConfig",
+    "MLFeatureLevel",
+    "Environment",
+    "SlackConfig",
+    "EmailConfig",
+    "load_config",
+    "MLEnhancedTrader",
+    "MLTradingLoop",
+    "TradeSuggestion",
+    "MLEnhancedTrade",
+    "create_ml_trader",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.5.0"

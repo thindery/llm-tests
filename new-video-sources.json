@@ -1,0 +1,510 @@
+[
+  {
+    "id": "pexels-thunderstorm",
+    "name": "Pexels - Thunderstorm and Lightning",
+    "url": "https://www.pexels.com/search/videos/thunderstorm%20lightning/",
+    "source_site": "pexels",
+    "license": "CC0",
+    "duration": "10-60sec clips",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "thunderstorm",
+      "lightning",
+      "storm",
+      "rain",
+      "weather",
+      "dramatic",
+      "powerful"
+    ],
+    "themes": [
+      "nature",
+      "weather",
+      "power",
+      "meditation"
+    ],
+    "moods": [
+      "dramatic",
+      "powerful",
+      "calm"
+    ],
+    "download_status": "catalogued",
+    "notes": "Thunderstorm and lightning footage. Powerful weather phenomena for dramatic nature scenes. CC0 license."
+  },
+  {
+    "id": "pexels-misty-forest",
+    "name": "Pexels - Misty Foggy Forest",
+    "url": "https://www.pexels.com/search/videos/misty%20forest%20fog/",
+    "source_site": "pexels",
+    "license": "CC0",
+    "duration": "10-60sec clips",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "misty",
+      "forest",
+      "fog",
+      "mysterious",
+      "trees",
+      "ethereal",
+      "morning"
+    ],
+    "themes": [
+      "nature",
+      "forest",
+      "mystery",
+      "meditation"
+    ],
+    "moods": [
+      "mysterious",
+      "peaceful",
+      "ethereal"
+    ],
+    "download_status": "catalogued",
+    "notes": "Misty foggy forest scenes. Ethereal morning fog for mysterious and calming sleep visuals. CC0 license."
+  },
+  {
+    "id": "pexels-river-flow",
+    "name": "Pexels - Gentle River Flow",
+    "url": "https://www.pexels.com/search/videos/river%20flowing%20gentle/",
+    "source_site": "pexels",
+    "license": "CC0",
+    "duration": "10-60sec clips",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "river",
+      "flowing",
+      "gentle",
+      "water",
+      "stream",
+      "peaceful",
+      "current"
+    ],
+    "themes": [
+      "nature",
+      "water",
+      "meditation",
+      "flow"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "flowing"
+    ],
+    "download_status": "catalogued",
+    "notes": "Gentle flowing river footage. Peaceful water currents for meditation and sleep. CC0 license."
+  },
+  {
+    "id": "pixabay-stars-timelapse",
+    "name": "Pixabay - Stars Timelapse Night Sky",
+    "url": "https://pixabay.com/videos/search/stars%20timelapse/",
+    "source_site": "pixabay",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "stars",
+      "timelapse",
+      "night-sky",
+      "milky-way",
+      "rotation",
+      "cosmic",
+      "celestial"
+    ],
+    "themes": [
+      "space",
+      "night-sky",
+      "cosmic",
+      "meditation"
+    ],
+    "moods": [
+      "awe-inspiring",
+      "calm",
+      "mysterious"
+    ],
+    "download_status": "catalogued",
+    "notes": "Star timelapse videos showing night sky rotation. Milky Way and celestial movement. CC0 license."
+  },
+  {
+    "id": "pixabay-mountain-lake",
+    "name": "Pixabay - Mountain Lake Reflection",
+    "url": "https://pixabay.com/videos/search/mountain%20lake/",
+    "source_site": "pixabay",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "mountain",
+      "lake",
+      "reflection",
+      "alpine",
+      "serene",
+      "mirror",
+      "peaceful"
+    ],
+    "themes": [
+      "nature",
+      "mountains",
+      "water",
+      "meditation"
+    ],
+    "moods": [
+      "peaceful",
+      "serene",
+      "calm"
+    ],
+    "download_status": "catalogued",
+    "notes": "Mountain lake reflections. Serene alpine waters with mirror-like reflections. CC0 license."
+  },
+  {
+    "id": "coverr-ocean-waves",
+    "name": "Coverr - Ocean Waves Aerial",
+    "url": "https://coverr.co/s/ocean%20waves",
+    "source_site": "coverr",
+    "license": "CC0",
+    "duration": "7-60sec loops",
+    "resolution": "1080p",
+    "quality_rating": 4,
+    "tags": [
+      "ocean",
+      "waves",
+      "aerial",
+      "turquoise",
+      "tropical",
+      "water",
+      "drone"
+    ],
+    "themes": [
+      "ocean",
+      "nature",
+      "meditation",
+      "beach"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "tropical"
+    ],
+    "download_status": "catalogued",
+    "notes": "Aerial ocean wave footage. Turquoise waters from above for tropical sleep themes. CC0 license."
+  },
+  {
+    "id": "coverr-forest-path",
+    "name": "Coverr - Forest Path Walking",
+    "url": "https://coverr.co/s/forest%20path",
+    "source_site": "coverr",
+    "license": "CC0",
+    "duration": "7-60sec loops",
+    "resolution": "1080p",
+    "quality_rating": 4,
+    "tags": [
+      "forest",
+      "path",
+      "walking",
+      "trees",
+      "nature",
+      "trail",
+      "woods"
+    ],
+    "themes": [
+      "nature",
+      "forest",
+      "journey",
+      "meditation"
+    ],
+    "moods": [
+      "peaceful",
+      "calm",
+      "natural"
+    ],
+    "download_status": "catalogued",
+    "notes": "Forest path walking footage. POV trail walks through peaceful woods. CC0 license."
+  },
+  {
+    "id": "mixkit-aurora-nature",
+    "name": "Mixkit - Aurora and Nature",
+    "url": "https://mixkit.co/free-stock-video/aurora/",
+    "source_site": "mixkit",
+    "license": "Free (Mixkit License)",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "aurora",
+      "northern-lights",
+      "nature",
+      "night",
+      "sky",
+      "green",
+      "dancing"
+    ],
+    "themes": [
+      "space",
+      "nature",
+      "night-sky",
+      "meditation"
+    ],
+    "moods": [
+      "awe-inspiring",
+      "mysterious",
+      "calm"
+    ],
+    "download_status": "catalogued",
+    "notes": "Mixkit aurora borealis videos. Northern lights dancing over landscapes. Free for commercial use."
+  },
+  {
+    "id": "mixkit-desert-landscapes",
+    "name": "Mixkit - Desert Landscapes",
+    "url": "https://mixkit.co/free-stock-video/desert/",
+    "source_site": "mixkit",
+    "license": "Free (Mixkit License)",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "desert",
+      "sand",
+      "dunes",
+      "arid",
+      "landscape",
+      "dry",
+      "vast"
+    ],
+    "themes": [
+      "nature",
+      "desert",
+      "meditation",
+      "vast"
+    ],
+    "moods": [
+      "vast",
+      "peaceful",
+      "warm"
+    ],
+    "download_status": "catalogued",
+    "notes": "Desert landscape footage from Mixkit. Golden sand dunes and arid scenery. Free for commercial use."
+  },
+  {
+    "id": "mixkit-rain-nature",
+    "name": "Mixkit - Rain and Wet Nature",
+    "url": "https://mixkit.co/free-stock-video/rain/",
+    "source_site": "mixkit",
+    "license": "Free (Mixkit License)",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "rain",
+      "wet",
+      "drops",
+      "nature",
+      "leaves",
+      "storm",
+      "cozy"
+    ],
+    "themes": [
+      "nature",
+      "rain",
+      "cozy",
+      "sleep"
+    ],
+    "moods": [
+      "cozy",
+      "calm",
+      "peaceful"
+    ],
+    "download_status": "catalogued",
+    "notes": "Rain and wet nature footage. Raindrops on leaves and cozy rainy scenes. Free for commercial use."
+  },
+  {
+    "id": "mazwai-water-scenes",
+    "name": "Mazwai - Water Scenes Collection",
+    "url": "https://mazwai.com/videos/tags/water",
+    "source_site": "mazwai",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "water",
+      "ocean",
+      "river",
+      "lake",
+      "liquid",
+      "flow",
+      "nature"
+    ],
+    "themes": [
+      "nature",
+      "water",
+      "meditation",
+      "flow"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "flowing"
+    ],
+    "download_status": "catalogued",
+    "notes": "Mazwai water collection. Curated artistic water footage by independent creators. CC0 license."
+  },
+  {
+    "id": "mazwai-sky-clouds",
+    "name": "Mazwai - Sky and Clouds",
+    "url": "https://mazwai.com/videos/tags/sky",
+    "source_site": "mazwai",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "sky",
+      "clouds",
+      "blue",
+      "timelapse",
+      "weather",
+      "atmosphere",
+      "nature"
+    ],
+    "themes": [
+      "nature",
+      "sky",
+      "meditation"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "vast"
+    ],
+    "download_status": "catalogued",
+    "notes": "Mazwai sky and cloud footage. Atmospheric clouds and sky timelapses. CC0 license."
+  },
+  {
+    "id": "vidsplay-starry-night",
+    "name": "Vidsplay - Starry Night Skies",
+    "url": "https://www.vidsplay.com/starry-night/",
+    "source_site": "vidsplay",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "stars",
+      "night",
+      "starry",
+      "sky",
+      "constellation",
+      "dark",
+      "sleep"
+    ],
+    "themes": [
+      "space",
+      "night-sky",
+      "sleep",
+      "meditation"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "mysterious"
+    ],
+    "download_status": "catalogued",
+    "notes": "Vidsplay starry night footage. Dark sky videos perfect for sleep backgrounds. CC0 license."
+  },
+  {
+    "id": "clipstill-fireplace",
+    "name": "Clipstill - Fireplace Cinemagraphs",
+    "url": "https://www.clipstill.com/collections/fireplace",
+    "source_site": "clipstill",
+    "license": "CC0",
+    "duration": "looping",
+    "resolution": "1080p",
+    "quality_rating": 4,
+    "tags": [
+      "fireplace",
+      "fire",
+      "cozy",
+      "warm",
+      "cabin",
+      "loop",
+      "cinemagraph"
+    ],
+    "themes": [
+      "cozy",
+      "warmth",
+      "sleep",
+      "winter"
+    ],
+    "moods": [
+      "warm",
+      "cozy",
+      "calm"
+    ],
+    "download_status": "catalogued",
+    "notes": "Fireplace cinemagraphs from Clipstill. Looping gentle fire scenes for cozy sleep videos. CC0 license."
+  },
+  {
+    "id": "lifeofpix-nature",
+    "name": "Life of Pix - Free Nature Videos",
+    "url": "https://www.lifeofpix.com/videos/",
+    "source_site": "lifeofpix",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "1080p|4K",
+    "quality_rating": 4,
+    "tags": [
+      "nature",
+      "landscapes",
+      "outdoor",
+      "scenic",
+      "beautiful",
+      "calm"
+    ],
+    "themes": [
+      "nature",
+      "landscapes",
+      "meditation"
+    ],
+    "moods": [
+      "calm",
+      "peaceful",
+      "beautiful"
+    ],
+    "download_status": "catalogued",
+    "notes": "Life of Pix free nature videos. Curated high quality nature footage by photographers. CC0 license."
+  },
+  {
+    "id": "dareful-nature",
+    "name": "Dareful - Free 4K Nature Videos",
+    "url": "https://dareful.com/",
+    "source_site": "dareful",
+    "license": "CC0",
+    "duration": "variable",
+    "resolution": "4K|1080p",
+    "quality_rating": 5,
+    "tags": [
+      "nature",
+      "4k",
+      "landscapes",
+      "seasons",
+      "drones",
+      "scenic",
+      "professional"
+    ],
+    "themes": [
+      "nature",
+      "epic",
+      "meditation"
+    ],
+    "moods": [
+      "awe-inspiring",
+      "peaceful",
+      "vast"
+    ],
+    "download_status": "catalogued",
+    "notes": "Dareful free 4K nature videos. Professional quality drone and landscape footage. CC0 license."
+  }
+]

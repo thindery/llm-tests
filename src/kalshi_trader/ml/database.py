@@ -5,6 +5,8 @@ Manages SQLite storage for:
 - A/B group assignments
 - Trade outcomes for analysis
 - Confidence history for trending
+- Safety controls and circuit breakers
+- Graduation logic for strategies
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ import sqlite3
 from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 
 SCHEMA = """
@@ -130,6 +132,91 @@ CREATE INDEX IF NOT EXISTS idx_predictions_trade ON model_predictions(trade_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_model ON model_predictions(model_version);
 CREATE INDEX IF NOT EXISTS idx_feature_importance_version ON feature_importance(model_version);
 CREATE INDEX IF NOT EXISTS idx_training_runs_type ON training_runs(suggestion_type);
+
+-- Safety controls tables
+CREATE TABLE IF NOT EXISTS safety_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL UNIQUE,
+    event_type TEXT NOT NULL,  -- circuit_breaker, cooldown_start, cooldown_end, etc.
+    reason TEXT,
+    reason_detail TEXT,
+    daily_pnl REAL,
+    consecutive_losses INTEGER,
+    current_balance REAL,
+    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS circuit_breakers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    breaker_id TEXT NOT NULL UNIQUE,
+    reason TEXT NOT NULL,
+    reason_detail TEXT,
+    daily_pnl_at_trigger REAL,
+    consecutive_losses_at_trigger INTEGER,
+    current_balance REAL,
+    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reset_at TIMESTAMP,
+    is_active INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS trade_safety_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id TEXT NOT NULL UNIQUE,
+    pnl REAL NOT NULL,
+    safety_state TEXT,  -- JSON of SafetyState at trade time
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Graduation logic tables
+CREATE TABLE IF NOT EXISTS strategy_performance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_type TEXT NOT NULL UNIQUE,
+    mode TEXT DEFAULT 'shadow',  -- shadow, live, paused, archived
+    total_trades INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
+    total_pnl REAL DEFAULT 0.0,
+    avg_pnl REAL DEFAULT 0.0,
+    win_rate REAL DEFAULT 0.0,
+    avg_win_amount REAL DEFAULT 0.0,
+    avg_loss_amount REAL DEFAULT 0.0,
+    max_drawdown REAL DEFAULT 0.0,
+    profit_factor REAL DEFAULT 0.0,
+    sharpe_ratio REAL DEFAULT 0.0,
+    first_trade_at TIMESTAMP,
+    last_trade_at TIMESTAMP,
+    mode_since TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    graduation_count INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Initialize strategy performance for all suggestion types
+INSERT OR IGNORE INTO strategy_performance (suggestion_type, mode) VALUES
+    ('reversion', 'shadow'),
+    ('breakout', 'shadow'),
+    ('volatility', 'shadow');
+
+CREATE TABLE IF NOT EXISTS graduation_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id TEXT NOT NULL UNIQUE,
+    suggestion_type TEXT NOT NULL,
+    direction TEXT NOT NULL,  -- promotion, demotion
+    from_mode TEXT NOT NULL,
+    to_mode TEXT NOT NULL,
+    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reason TEXT,
+    performance_snapshot TEXT,  -- JSON of performance at transition
+    threshold_triggered TEXT
+);
+
+-- Create indexes for safety and graduation tables
+CREATE INDEX IF NOT EXISTS idx_safety_events_type ON safety_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_safety_events_triggered ON safety_events(triggered_at);
+CREATE INDEX IF NOT EXISTS idx_circuit_breakers_active ON circuit_breakers(is_active);
+CREATE INDEX IF NOT EXISTS idx_circuit_breakers_triggered ON circuit_breakers(triggered_at);
+CREATE INDEX IF NOT EXISTS idx_graduation_events_type ON graduation_events(suggestion_type);
+CREATE INDEX IF NOT EXISTS idx_graduation_events_triggered ON graduation_events(triggered_at);
 """
 
 
@@ -157,6 +244,41 @@ class TradeOutcomeRecord:
     outcome: Optional[bool]
     created_at: datetime
     completed_at: Optional[datetime]
+
+
+@dataclass
+class CircuitBreakerRecord:
+    """Record of a circuit breaker event."""
+    breaker_id: str
+    reason: str
+    reason_detail: str
+    triggered_at: datetime
+    reset_at: Optional[datetime]
+    daily_pnl_at_trigger: float
+    consecutive_losses_at_trigger: int
+    current_balance: float
+
+
+@dataclass
+class StrategyPerformanceRecord:
+    """Record of strategy performance."""
+    suggestion_type: str
+    mode: str
+    total_trades: int
+    wins: int
+    losses: int
+    total_pnl: float
+    avg_pnl: float
+    win_rate: float
+    avg_win_amount: float
+    avg_loss_amount: float
+    max_drawdown: float
+    profit_factor: float
+    sharpe_ratio: float
+    first_trade_at: Optional[datetime]
+    last_trade_at: Optional[datetime]
+    mode_since: datetime
+    graduation_count: int
 
 
 class MLDatabase:
@@ -746,3 +868,252 @@ class MLDatabase:
             }
             for row in cursor.fetchall()
         ]
+    
+    # Safety controls methods
+    def record_circuit_breaker(self, record: CircuitBreakerRecord) -> None:
+        """Record a circuit breaker event."""
+        conn = self._get_connection()
+        conn.execute(
+            """INSERT INTO circuit_breakers 
+               (breaker_id, reason, reason_detail, daily_pnl_at_trigger, 
+                consecutive_losses_at_trigger, current_balance, triggered_at, reset_at, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)""",
+            (record.breaker_id, record.reason, record.reason_detail,
+             record.daily_pnl_at_trigger, record.consecutive_losses_at_trigger,
+             record.current_balance, record.triggered_at.isoformat(),
+             record.reset_at.isoformat() if record.reset_at else None)
+        )
+        conn.commit()
+    
+    def get_active_circuit_breaker(self) -> Optional[CircuitBreakerRecord]:
+        """Get active circuit breaker if any."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM circuit_breakers WHERE is_active = 1 ORDER BY triggered_at DESC LIMIT 1"
+        )
+        row = cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        return CircuitBreakerRecord(
+            breaker_id=row["breaker_id"],
+            reason=row["reason"],
+            reason_detail=row["reason_detail"] or "",
+            triggered_at=datetime.fromisoformat(row["triggered_at"]),
+            reset_at=datetime.fromisoformat(row["reset_at"]) if row["reset_at"] else None,
+            daily_pnl_at_trigger=row["daily_pnl_at_trigger"] or 0.0,
+            consecutive_losses_at_trigger=row["consecutive_losses_at_trigger"] or 0,
+            current_balance=row["current_balance"] or 0.0
+        )
+    
+    def reset_circuit_breaker(self) -> None:
+        """Reset/deactivate active circuit breaker."""
+        conn = self._get_connection()
+        conn.execute(
+            """UPDATE circuit_breakers 
+               SET is_active = 0 
+               WHERE is_active = 1"""
+        )
+        conn.commit()
+    
+    def get_circuit_breaker_count(self, date_str: str) -> int:
+        """Count circuit breakers triggered on a specific date."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """SELECT COUNT(*) FROM circuit_breakers 
+               WHERE date(triggered_at) = ?""",
+            (date_str,)
+        )
+        return cursor.fetchone()[0]
+    
+    def get_daily_pnl(self, date_str: str) -> float:
+        """Get total PnL for a specific date."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """SELECT SUM(pnl) FROM trade_safety_records 
+               WHERE date(recorded_at) = ?""",
+            (date_str,)
+        )
+        result = cursor.fetchone()[0]
+        return result or 0.0
+    
+    def get_consecutive_losses(self) -> int:
+        """Get number of consecutive losses from recent trades."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            """SELECT pnl FROM trade_safety_records 
+               ORDER BY recorded_at DESC LIMIT 10"""
+        )
+        
+        consecutive = 0
+        for row in cursor.fetchall():
+            if row["pnl"] < 0:
+                consecutive += 1
+            else:
+                break
+        return consecutive
+    
+    def get_open_position_count(self) -> int:
+        """Get count of open positions."""
+        # This would need to be tracked separately in a positions table
+        # For now, return 0 as placeholder
+        return 0
+    
+    def record_trade_with_safety(
+        self,
+        trade_id: str,
+        pnl: float,
+        safety_state: dict
+    ) -> None:
+        """Record trade with safety state snapshot."""
+        import json
+        conn = self._get_connection()
+        conn.execute(
+            """INSERT INTO trade_safety_records 
+               (trade_id, pnl, safety_state)
+               VALUES (?, ?, ?)
+               ON CONFLICT(trade_id) DO UPDATE SET
+               pnl=excluded.pnl, safety_state=excluded.safety_state""",
+            (trade_id, pnl, json.dumps(safety_state))
+        )
+        conn.commit()
+    
+    def record_safety_event(
+        self,
+        event_id: str,
+        event_type: str,
+        reason: Optional[str] = None,
+        reason_detail: Optional[str] = None,
+        daily_pnl: Optional[float] = None,
+        consecutive_losses: Optional[int] = None,
+        current_balance: Optional[float] = None,
+    ) -> None:
+        """Record a safety event."""
+        conn = self._get_connection()
+        conn.execute(
+            """INSERT INTO safety_events 
+               (event_id, event_type, reason, reason_detail, daily_pnl, 
+                consecutive_losses, current_balance)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (event_id, event_type, reason, reason_detail, 
+             daily_pnl, consecutive_losses, current_balance)
+        )
+        conn.commit()
+    
+    # Graduation logic methods
+    def get_strategy_performance(self, suggestion_type: str) -> Optional[StrategyPerformanceRecord]:
+        """Get performance record for a strategy."""
+        conn = self._get_connection()
+        cursor = conn.execute(
+            "SELECT * FROM strategy_performance WHERE suggestion_type = ?",
+            (suggestion_type,)
+        )
+        row = cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        return StrategyPerformanceRecord(
+            suggestion_type=row["suggestion_type"],
+            mode=row["mode"],
+            total_trades=row["total_trades"] or 0,
+            wins=row["wins"] or 0,
+            losses=row["losses"] or 0,
+            total_pnl=row["total_pnl"] or 0.0,
+            avg_pnl=row["avg_pnl"] or 0.0,
+            win_rate=row["win_rate"] or 0.0,
+            avg_win_amount=row["avg_win_amount"] or 0.0,
+            avg_loss_amount=row["avg_loss_amount"] or 0.0,
+            max_drawdown=row["max_drawdown"] or 0.0,
+            profit_factor=row["profit_factor"] or 0.0,
+            sharpe_ratio=row["sharpe_ratio"] or 0.0,
+            first_trade_at=datetime.fromisoformat(row["first_trade_at"]) if row["first_trade_at"] else None,
+            last_trade_at=datetime.fromisoformat(row["last_trade_at"]) if row["last_trade_at"] else None,
+            mode_since=datetime.fromisoformat(row["mode_since"]) if row["mode_since"] else datetime.now(),
+            graduation_count=row["graduation_count"] or 0
+        )
+    
+    def save_strategy_performance(
+        self,
+        performance: Any  # StrategyPerformance from graduation_logic
+    ) -> None:
+        """Save strategy performance to database."""
+        conn = self._get_connection()
+        conn.execute(
+            """INSERT INTO strategy_performance 
+               (suggestion_type, mode, total_trades, wins, losses, total_pnl, 
+                avg_pnl, win_rate, avg_win_amount, avg_loss_amount, max_drawdown,
+                profit_factor, sharpe_ratio, first_trade_at, last_trade_at, 
+                mode_since, graduation_count)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(suggestion_type) DO UPDATE SET
+               mode=excluded.mode, total_trades=excluded.total_trades, wins=excluded.wins,
+               losses=excluded.losses, total_pnl=excluded.total_pnl, avg_pnl=excluded.avg_pnl,
+               win_rate=excluded.win_rate, avg_win_amount=excluded.avg_win_amount,
+               avg_loss_amount=excluded.avg_loss_amount, max_drawdown=excluded.max_drawdown,
+               profit_factor=excluded.profit_factor, sharpe_ratio=excluded.sharpe_ratio,
+               first_trade_at=excluded.first_trade_at, last_trade_at=excluded.last_trade_at,
+               mode_since=excluded.mode_since, graduation_count=excluded.graduation_count""",
+            (performance.suggestion_type, performance.mode.value, performance.total_trades,
+             performance.wins, performance.losses, performance.total_pnl, performance.avg_pnl,
+             performance.win_rate, performance.avg_win_amount, performance.avg_loss_amount,
+             performance.max_drawdown, performance.profit_factor, performance.sharpe_ratio,
+             performance.first_trade_at.isoformat() if performance.first_trade_at else None,
+             performance.last_trade_at.isoformat() if performance.last_trade_at else None,
+             performance.mode_since.isoformat(), performance.graduation_count)
+        )
+        conn.commit()
+    
+    def record_graduation_event(self, event: Any) -> None:
+        """Record a graduation event."""
+        import json
+        conn = self._get_connection()
+        conn.execute(
+            """INSERT INTO graduation_events 
+               (event_id, suggestion_type, direction, from_mode, to_mode, 
+                triggered_at, reason, performance_snapshot, threshold_triggered)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (event.event_id, event.suggestion_type, event.direction.value,
+             event.from_mode.value, event.to_mode.value, event.triggered_at.isoformat(),
+             event.reason, json.dumps(event.performance_at_transition), 
+             event.threshold_triggered)
+        )
+        conn.commit()
+    
+    def get_graduation_events(
+        self,
+        suggestion_type: Optional[str] = None,
+        limit: int = 50
+    ) -> list:
+        """Get graduation events, optionally filtered by suggestion type."""
+        from .graduation_logic import GraduationEvent, GraduationDirection, StrategyMode
+        
+        conn = self._get_connection()
+        query = "SELECT * FROM graduation_events"
+        params = []
+        
+        if suggestion_type:
+            query += " WHERE suggestion_type = ?"
+            params.append(suggestion_type)
+        
+        query += " ORDER BY triggered_at DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor = conn.execute(query, params)
+        
+        events = []
+        for row in cursor.fetchall():
+            events.append(GraduationEvent(
+                event_id=row["event_id"],
+                suggestion_type=row["suggestion_type"],
+                direction=GraduationDirection(row["direction"]),
+                from_mode=StrategyMode(row["from_mode"]),
+                to_mode=StrategyMode(row["to_mode"]),
+                triggered_at=datetime.fromisoformat(row["triggered_at"]),
+                reason=row["reason"],
+                performance_at_transition=json.loads(row["performance_snapshot"]) if row["performance_snapshot"] else {},
+                threshold_triggered=row["threshold_triggered"]
+            ))
+        
+        return events

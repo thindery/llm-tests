@@ -47,11 +47,8 @@ def get_follower_stats():
         access_token_secret=os.environ.get('X_ACCESS_TOKEN_SECRET')
     )
     
-    user_id = os.environ.get('X_USER_ID') or '2019211763414110208'
-    
-    # Fetch user data
-    user = client.get_user(
-        id=user_id,
+    # Fetch own user data (get_me works on free tier, get_user requires higher tier)
+    user = client.get_me(
         user_fields=['public_metrics', 'description', 'username', 'name']
     )
     

@@ -1,0 +1,36 @@
+{
+  "ralph_version": "1.0",
+  "project": "kalshi-trader",
+  "workflow": {
+    "phases": [
+      "research",
+      "dev",
+      "review",
+      "merge",
+      "close"
+    ]
+  },
+  "settings": {
+    "auto_create_branch": true,
+    "auto_run_tests": true,
+    "require_tech_lead_review": true,
+    "auto_merge_on_approval": true,
+    "sequential_execution": true
+  },
+  "paths": {
+    "plans_dir": ".alph/plans",
+    "logs_dir": ".alph/logs",
+    "template": ".alph/plan.template",
+    "db": "/Users/thindery/projects/remy-tracker/remy.db"
+  },
+  "commands": {
+    "test": "python3 -m pytest tests/ -v",
+    "lint": "flake8 src/",
+    "typecheck": "mypy src/"
+  },
+  "notifications": {
+    "on_complete": true,
+    "on_error": true,
+    "format": "markdown"
+  }
+}

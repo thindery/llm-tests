@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.github/
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+tests/
+.pytest_cache/
+coverage/
+htmlcov/
+
+# Logs and data (mount via volume instead)
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+.DS_Store
+Thumbs.db
+
+# Local configuration
+.env
+.env.local
+.env.*.local
+
+# Documentation builds
+docs/_build/
+
+# CI/CD
+.github/
+.travis.yml
+.gitlab-ci.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker/

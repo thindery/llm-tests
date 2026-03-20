@@ -1,18 +1,22 @@
 """ML Pipeline Integration for Kalshi Trader.
 
 Integrates Phase 2 (Confidence Scoring, A/B Testing) with Phase 3
-(Feature Engineering, Model Training, Model Registry).
+(Feature Engineering, Model Training, Model Registry) and Phase 4
+(Safety Controls, Graduation Logic).
 
 Provides a unified interface for:
 - Extracting features from trade data
 - Training and registering models
 - Making predictions with confidence scores
 - Tracking model performance
+- Managing safety controls and circuit breakers
+- Automatic strategy graduation between shadow/live
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,6 +39,23 @@ from .model_registry import (
     ModelVersion,
     ModelStatus,
 )
+from .safety_controls import (
+    SafetyControls,
+    SafetyConfig,
+    SafetyState,
+    SafetyStatus,
+    CircuitBreakerReason,
+    create_safety_controls,
+)
+from .graduation_logic import (
+    GraduationLogic,
+    GraduationThresholds,
+    StrategyMode,
+    GraduationDirection,
+    create_graduation_logic,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,6 +69,8 @@ class MLPrediction:
     model_version: Optional[str]
     features_used: Dict[str, float] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
+    safety_check_passed: bool = True
+    graduation_status: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -60,6 +83,8 @@ class MLPrediction:
             'model_version': self.model_version,
             'features_used': self.features_used,
             'timestamp': self.timestamp.isoformat(),
+            'safety_check_passed': self.safety_check_passed,
+            'graduation_status': self.graduation_status,
         }
 
 
@@ -73,6 +98,14 @@ class PipelineMetrics:
     
     # By suggestion type
     by_suggestion_type: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    
+    # Safety metrics
+    circuit_breakers_triggered: int = 0
+    trades_blocked_by_safety: int = 0
+    
+    # Graduation metrics
+    strategies_in_live: int = 0
+    strategies_in_shadow: int = 0
     
     @property
     def accuracy(self) -> float:
@@ -94,6 +127,10 @@ class PipelineMetrics:
             'profitable_trades': self.profitable_trades,
             'win_rate': self.win_rate,
             'by_suggestion_type': self.by_suggestion_type,
+            'circuit_breakers_triggered': self.circuit_breakers_triggered,
+            'trades_blocked_by_safety': self.trades_blocked_by_safety,
+            'strategies_in_live': self.strategies_in_live,
+            'strategies_in_shadow': self.strategies_in_shadow,
         }
 
 
@@ -105,6 +142,8 @@ class MLPipeline:
     - Model training and registry
     - Prediction with confidence scoring
     - Performance tracking
+    - Safety controls (circuit breakers, position sizing)
+    - Graduation logic (shadow <-> live trading)
     
     Parameters
     ----------
@@ -118,11 +157,19 @@ class MLPipeline:
         Confidence scorer instance (creates default if None)
     ab_testing : ABTesting | None
         A/B testing instance (creates default if None)
+    safety_controls : SafetyControls | None
+        Safety controls instance (creates default if None)
+    graduation_logic : GraduationLogic | None
+        Graduation logic instance (creates default if None)
     
     Attributes
     ----------
     ensemble : EnsembleTrainer
         Ensemble trainer for all suggestion types
+    safety : SafetyControls
+        Safety controls for circuit breakers and position sizing
+    graduation : GraduationLogic
+        Graduation logic for strategy promotion/demotion
     
     Example
     -------
@@ -130,16 +177,31 @@ class MLPipeline:
     >>>
     >>> # Initialize pipeline
     >>> pipeline = MLPipeline()
-    >>> pipeline.initialize()
+    >>> pipeline.initialize(balance=1000.0)
+    >>>
+    >>> # Check safety status
+    >>> status = pipeline.get_safety_status()
+    >>> print(f"Can trade: {status['state']['is_trading_allowed']}")
     >>>
     >>> # Train models (if enough data)
     >>> if pipeline.has_sufficient_data():
     ...     pipeline.train_all_models()
     >>>
-    >>> # Make prediction
+    >>> # Make prediction with safety check
     >>> prediction = pipeline.predict(price_history, SuggestionType.BREAKOUT)
-    >>> print(f"Should trade: {prediction.should_trade}")
-    >>> print(f"Confidence: {prediction.combined_confidence:.2%}")
+    >>> if prediction.should_trade and prediction.safety_check_passed:
+    ...     size = pipeline.calculate_position_size(prediction.combined_confidence)
+    ...     print(f"Execute trade: ${size:.2f}")
+    >>>
+    >>> # Record outcome and check graduation
+    >>> pipeline.record_trade_outcome(
+    ...     trade_id="trade_001",
+    ...     suggestion_type=SuggestionType.BREAKOUT,
+    ...     price_history=price_history,
+    ...     entry_price=0.45,
+    ...     exit_price=0.52,
+    ...     pnl=0.07,
+    ... )
     """
     
     def __init__(
@@ -149,6 +211,8 @@ class MLPipeline:
         feature_engineer: Optional[FeatureEngineer] = None,
         confidence_scorer: Optional[ConfidenceScorer] = None,
         ab_testing: Optional[ABTesting] = None,
+        safety_controls: Optional[SafetyControls] = None,
+        graduation_logic: Optional[GraduationLogic] = None,
     ):
         self.db = db or MLDatabase()
         self.registry = registry or ModelRegistry()
@@ -156,20 +220,34 @@ class MLPipeline:
         self.confidence_scorer = confidence_scorer or ConfidenceScorer(db=self.db)
         self.ab_testing = ab_testing or ABTesting(db=self.db)
         
+        # Phase 4: Safety Controls and Graduation Logic
+        self.safety = safety_controls or SafetyControls(db=self.db)
+        self.graduation = graduation_logic or GraduationLogic(db=self.db)
+        
         self.ensemble: Optional[EnsembleTrainer] = None
         self._initialized = False
+        self._metrics = PipelineMetrics()
     
-    def initialize(self) -> None:
-        """Initialize all components."""
+    def initialize(self, balance: float = 1000.0) -> None:
+        """Initialize all components including safety and graduation.
+        
+        Parameters
+        ----------
+        balance : float
+            Starting account balance for safety controls
+        """
         self.db.initialize()
         self.registry.initialize()
         self.confidence_scorer.initialize()
         self.ab_testing.initialize()
+        self.safety.initialize(balance=balance)
+        self.graduation.initialize()
         
         # Try to load existing models from registry
         self._load_production_models()
         
         self._initialized = True
+        logger.info("ML Pipeline initialized with Phase 4 safety controls and graduation logic")
     
     def _load_production_models(self) -> None:
         """Load production models from registry."""
@@ -207,7 +285,7 @@ class MLPipeline:
                     )
                 except Exception as e:
                     # Log error but continue
-                    print(f"Failed to load model for {stype.value}: {e}")
+                    logger.warning(f"Failed to load model for {stype.value}: {e}")
     
     def has_sufficient_data(
         self,
@@ -284,7 +362,7 @@ class MLPipeline:
         X, y, feature_names = self.db.get_training_data(suggestion_type.value)
         
         if len(y) < 200:
-            print(f"Insufficient data for {suggestion_type.value}: {len(y)} samples")
+            logger.warning(f"Insufficient data for {suggestion_type.value}: {len(y)} samples")
             return None
         
         # Convert to numpy arrays
@@ -346,6 +424,7 @@ class MLPipeline:
                 run_id=run_id,
                 status='failed'
             )
+            logger.error(f"Training failed for {suggestion_type.value}: {e}")
             raise e
     
     def train_all_models(
@@ -370,14 +449,14 @@ class MLPipeline:
         results = {}
         
         for stype in SuggestionType:
-            print(f"Training model for {stype.value}...")
+            logger.info(f"Training model for {stype.value}...")
             result = self.train_model(stype, config, promote_to_prod)
             results[stype] = result
             
             if result:
-                print(f"  Accuracy: {result.test_accuracy:.3f}, AUC: {result.test_auc:.3f}")
+                logger.info(f"  Accuracy: {result.test_accuracy:.3f}, AUC: {result.test_auc:.3f}")
             else:
-                print(f"  Skipped - insufficient data")
+                logger.info(f"  Skipped - insufficient data")
         
         return results
     
@@ -386,12 +465,14 @@ class MLPipeline:
         price_history: PriceHistory,
         suggestion_type: SuggestionType,
         use_ml: bool = True,
-        confidence_threshold: float = 0.6
+        confidence_threshold: float = 0.6,
+        check_safety: bool = True,
     ) -> MLPrediction:
         """Make prediction for a trade suggestion.
         
         Combines Bayesian confidence with ML prediction for
-        a more robust confidence score.
+        a more robust confidence score. Includes safety checks
+        and graduation status.
         
         Parameters
         ----------
@@ -403,11 +484,13 @@ class MLPipeline:
             Whether to use ML model (if available)
         confidence_threshold : float
             Minimum confidence to recommend trading
+        check_safety : bool
+            Whether to check safety controls before allowing trade
             
         Returns
         -------
         MLPrediction
-            Prediction result with confidence scores
+            Prediction result with confidence scores and safety status
         """
         # Get Bayesian confidence
         bayesian_confidence = self.confidence_scorer.get_confidence(suggestion_type)
@@ -444,7 +527,7 @@ class MLPipeline:
                 )
             except Exception as e:
                 # Fall back to Bayesian if ML fails
-                print(f"ML prediction failed: {e}")
+                logger.warning(f"ML prediction failed: {e}")
                 ml_confidence = 0.5
         
         # Combine confidences (weighted average)
@@ -457,6 +540,24 @@ class MLPipeline:
         # Determine if should trade
         should_trade = combined_confidence >= confidence_threshold
         
+        # Check safety controls
+        safety_check_passed = True
+        if check_safety and should_trade:
+            can_trade, reason = self.safety.can_open_position()
+            if not can_trade:
+                safety_check_passed = False
+                should_trade = False
+                self._metrics.trades_blocked_by_safety += 1
+                logger.warning(f"Trade blocked by safety: {reason}")
+        
+        # Get graduation status
+        graduation_status = self.graduation.get_strategy_status(suggestion_type)
+        
+        # Check if strategy is in live mode
+        if should_trade and not self.graduation.is_live(suggestion_type):
+            should_trade = False
+            logger.info(f"Trade blocked: strategy {suggestion_type.value} not in live mode")
+        
         return MLPrediction(
             suggestion_type=suggestion_type,
             should_trade=should_trade,
@@ -465,6 +566,46 @@ class MLPipeline:
             combined_confidence=combined_confidence,
             model_version=model_version,
             features_used=features.features,
+            safety_check_passed=safety_check_passed,
+            graduation_status=graduation_status,
+        )
+    
+    def calculate_position_size(
+        self,
+        confidence: float,
+        suggestion_type: Optional[SuggestionType] = None,
+    ) -> float:
+        """Calculate position size using safety controls.
+        
+        Parameters
+        ----------
+        confidence : float
+            Trade confidence
+        suggestion_type : SuggestionType | None
+            Strategy type (for win rate lookup)
+            
+        Returns
+        -------
+        float
+            Position size in dollars
+        """
+        # Get win rate for Kelly calculation if available
+        win_rate = None
+        avg_win = None
+        avg_loss = None
+        
+        if suggestion_type:
+            status = self.graduation.get_strategy_status(suggestion_type)
+            perf = status.get('performance', {})
+            win_rate = perf.get('win_rate')
+            avg_win = perf.get('avg_win_amount')
+            avg_loss = perf.get('avg_loss_amount')
+        
+        return self.safety.calculate_position_size(
+            confidence=confidence,
+            win_rate=win_rate,
+            avg_win=avg_win,
+            avg_loss=avg_loss,
         )
     
     def record_trade_outcome(
@@ -475,9 +616,18 @@ class MLPipeline:
         entry_price: float,
         exit_price: float,
         pnl: float,
+        position_size: float = 0.0,
         group_assignment: Optional[str] = None,
-    ) -> None:
+        auto_graduate: bool = True,
+    ) -> Dict[str, Any]:
         """Record trade outcome and update all systems.
+        
+        This updates:
+        - Bayesian confidence scores
+        - Safety controls (daily pnl, consecutive losses)
+        - Graduation logic (promotion/demotion)
+        - Training data
+        - A/B testing
         
         Parameters
         ----------
@@ -493,13 +643,44 @@ class MLPipeline:
             Exit price
         pnl : float
             Profit/loss
+        position_size : float
+            Size of position
         group_assignment : str | None
             A/B group assignment
+        auto_graduate : bool
+            Whether to automatically evaluate graduation
+            
+        Returns
+        -------
+        dict
+            Summary of updates
         """
         outcome = pnl > 0
         
         # Update Bayesian confidence
         self.confidence_scorer.update_after_trade(suggestion_type, outcome, pnl)
+        
+        # Update safety controls
+        safety_record = self.safety.record_trade(
+            trade_id=trade_id,
+            pnl=pnl,
+            position_size=position_size,
+            suggestion_type=suggestion_type.value,
+        )
+        
+        # Check if circuit breaker was triggered
+        if self.safety.state.status == SafetyStatus.CIRCUIT_BREAKER:
+            self._metrics.circuit_breakers_triggered += 1
+        
+        # Record for graduation logic
+        grad_record = self.graduation.record_trade(suggestion_type, pnl, trade_id)
+        
+        # Auto-evaluate graduation
+        graduation_event = None
+        if auto_graduate:
+            graduation_event = self.graduation.auto_graduate(suggestion_type)
+            if graduation_event:
+                logger.info(f"Graduation event: {graduation_event.direction.value} for {suggestion_type.value}")
         
         # Extract and save features for future training
         features = self.feature_engineer.extract_features_for_suggestion_type(
@@ -521,7 +702,7 @@ class MLPipeline:
         if group_assignment:
             self.ab_testing.record_trade_outcome(
                 trade_id=trade_id,
-                user_id="system",  # Could be parameterized
+                user_id="system",
                 group_assignment=group_assignment,
                 suggestion_type=suggestion_type.value,
                 confidence=self.confidence_scorer.get_confidence(suggestion_type),
@@ -529,8 +710,54 @@ class MLPipeline:
             )
             self.ab_testing.complete_trade(trade_id, exit_price, pnl)
         
-        # Update any pending predictions
-        # (In practice, would link prediction_id to trade_id)
+        return {
+            'trade_id': trade_id,
+            'bayesian_updated': True,
+            'safety_record': safety_record,
+            'graduation_record': grad_record,
+            'graduation_event': graduation_event.to_dict() if graduation_event else None,
+            'auto_graduate': auto_graduate,
+        }
+    
+    def record_position_opened(self, position_size: float) -> None:
+        """Record that a position was opened.
+        
+        Parameters
+        ----------
+        position_size : float
+            Size of opened position
+        """
+        self.safety.record_position_opened(position_size)
+    
+    def get_safety_status(self) -> Dict[str, Any]:
+        """Get current safety status.
+        
+        Returns
+        -------
+        dict
+            Safety status summary
+        """
+        return self.safety.get_status()
+    
+    def get_graduation_status(self, suggestion_type: Optional[SuggestionType] = None) -> Dict[str, Any]:
+        """Get graduation status for strategies.
+        
+        Parameters
+        ----------
+        suggestion_type : SuggestionType | None
+            Specific strategy to check, or all if None
+            
+        Returns
+        -------
+        dict
+            Graduation status
+        """
+        if suggestion_type:
+            return self.graduation.get_strategy_status(suggestion_type)
+        else:
+            return {
+                'strategies': self.graduation.get_all_strategy_statuses(),
+            }
     
     def get_metrics(self) -> PipelineMetrics:
         """Get pipeline performance metrics.
@@ -540,23 +767,29 @@ class MLPipeline:
         PipelineMetrics
             Pipeline metrics
         """
-        metrics = PipelineMetrics()
-        
-        # Get prediction accuracy from database
-        # (Would need to track prediction outcomes)
-        
         # Get trade outcomes
         outcomes = self.db.get_trade_outcomes(limit=1000)
         completed = [o for o in outcomes if o.outcome is not None]
         
-        metrics.total_trades = len(completed)
-        metrics.profitable_trades = sum(1 for o in completed if o.outcome)
+        self._metrics.total_trades = len(completed)
+        self._metrics.profitable_trades = sum(1 for o in completed if o.outcome)
         
         # Get metrics by suggestion type
         type_metrics = self.db.get_suggestion_type_metrics()
-        metrics.by_suggestion_type = type_metrics
+        self._metrics.by_suggestion_type = type_metrics
         
-        return metrics
+        # Update graduation metrics
+        live_count = 0
+        shadow_count = 0
+        for stype in SuggestionType:
+            if self.graduation.is_live(stype):
+                live_count += 1
+            else:
+                shadow_count += 1
+        self._metrics.strategies_in_live = live_count
+        self._metrics.strategies_in_shadow = shadow_count
+        
+        return self._metrics
     
     def get_status(self) -> Dict[str, Any]:
         """Get pipeline status summary.
@@ -582,12 +815,20 @@ class MLPipeline:
         # Get recent training runs
         recent_runs = self.db.get_training_runs(limit=5)
         
+        # Get safety status
+        safety_status = self.get_safety_status()
+        
+        # Get graduation status
+        graduation_status = self.get_graduation_status()
+        
         return {
             'initialized': self._initialized,
             'data_summary': data_summary,
             'production_models': prod_models,
             'recent_training_runs': recent_runs,
             'has_sufficient_data': self.has_sufficient_data(),
+            'safety': safety_status,
+            'graduation': graduation_status,
         }
     
     def retrain_if_needed(
@@ -624,21 +865,65 @@ class MLPipeline:
         
         results = {}
         for stype in needs_retrain:
-            print(f"Retraining {stype.value} model (accuracy below threshold)")
+            logger.info(f"Retraining {stype.value} model (accuracy below threshold)")
             result = self.train_model(stype, promote_to_prod=True)
             results[stype] = result
         
         return results
+    
+    def promote_to_live(self, suggestion_type: SuggestionType, reason: Optional[str] = None) -> Optional[Any]:
+        """Manually promote a strategy to live trading.
+        
+        Parameters
+        ----------
+        suggestion_type : SuggestionType
+            Strategy to promote
+        reason : str | None
+            Reason for promotion
+            
+        Returns
+        -------
+        GraduationEvent | None
+            Event record if promotion occurred
+        """
+        return self.graduation.promote_to_live(suggestion_type, reason)
+    
+    def demote_to_shadow(self, suggestion_type: SuggestionType, reason: Optional[str] = None) -> Optional[Any]:
+        """Manually demote a strategy to shadow trading.
+        
+        Parameters
+        ----------
+        suggestion_type : SuggestionType
+            Strategy to demote
+        reason : str | None
+            Reason for demotion
+            
+        Returns
+        -------
+        GraduationEvent | None
+            Event record if demotion occurred
+        """
+        return self.graduation.demote_to_shadow(suggestion_type, reason)
+    
+    def reset_circuit_breaker(self) -> None:
+        """Manually reset circuit breaker."""
+        self.safety._reset_circuit_breaker()
+    
+    def reset_daily_stats(self) -> None:
+        """Reset daily statistics (call at market open)."""
+        self.safety.reset_daily_stats()
 
 
 def create_pipeline(
     db_path: Optional[str] = None,
     registry_path: Optional[str] = None,
+    balance: float = 1000.0,
+    **safety_config
 ) -> MLPipeline:
     """Create and initialize ML pipeline.
     
     Convenience function for creating a fully configured
-    ML pipeline.
+    ML pipeline with safety controls and graduation logic.
     
     Parameters
     ----------
@@ -646,6 +931,10 @@ def create_pipeline(
         Path to database
     registry_path : str | None
         Path to model registry
+    balance : float
+        Starting account balance
+    **safety_config
+        Safety configuration parameters
         
     Returns
     -------
@@ -655,10 +944,19 @@ def create_pipeline(
     db = MLDatabase(db_path) if db_path else MLDatabase()
     registry = ModelRegistry(registry_path) if registry_path else ModelRegistry()
     
+    # Create safety controls with config
+    safety_config_obj = SafetyConfig(**safety_config) if safety_config else SafetyConfig()
+    safety = SafetyControls(db=db, config=safety_config_obj)
+    
+    # Create graduation logic
+    graduation = GraduationLogic(db=db)
+    
     pipeline = MLPipeline(
         db=db,
         registry=registry,
+        safety_controls=safety,
+        graduation_logic=graduation,
     )
-    pipeline.initialize()
+    pipeline.initialize(balance=balance)
     
     return pipeline

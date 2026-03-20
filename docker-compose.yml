@@ -1,0 +1,143 @@
+# Kalshi Trader ML Pipeline - Docker Compose
+# Phase 5: Production Integration & Monitoring
+
+version: '3.8'
+
+services:
+  # Main API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: kalshi-trader:ml-phase5
+    container_name: kalshi-trader-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - KALSHI_ENV=production
+      - LOG_LEVEL=INFO
+      - DB_PATH=/app/data/ml_pipeline.db
+      - MODEL_REGISTRY_PATH=/app/data/models
+      - HEALTH_CHECK_INTERVAL=60
+      - ENABLE_METRICS=true
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    networks:
+      - kalshi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Dashboard service
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dashboard
+    image: kalshi-trader:ml-phase5-dashboard
+    container_name: kalshi-trader-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - KALSHI_ENV=production
+      - DB_PATH=/app/data/ml_pipeline.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - kalshi-network
+    depends_on:
+      - api
+    # Streamlit handles its own health checks
+
+  # Monitoring/Report service
+  monitoring:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: kalshi-trader:ml-phase5
+    container_name: kalshi-trader-monitoring
+    restart: unless-stopped
+    command: >
+      python -c "
+      import asyncio
+      from kalshi_trader.monitoring import PnLReporter, AlertManager
+      from kalshi_trader.ml.database import MLDatabase
+      from kalshi_trader.ml.config import load_config
+      
+      async def main():
+          db = MLDatabase('/app/data/ml_pipeline.db')
+          alerts = AlertManager()
+          reporter = PnLReporter(db, alert_manager=alerts)
+          
+          # Schedule daily reports at 5 PM
+          reporter.add_schedule('DAILY', time='17:00')
+          
+          await reporter.start()
+      
+      asyncio.run(main())
+      "
+    environment:
+      - KALSHI_ENV=production
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_TO_ADDRESSES=${EMAIL_TO_ADDRESSES}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+    networks:
+      - kalshi-network
+    depends_on:
+      - api
+
+  # Development service (optional)
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: kalshi-trader:ml-phase5-dev
+    container_name: kalshi-trader-dev
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+    environment:
+      - KALSHI_ENV=development
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - /app/data  # Persist database
+    networks:
+      - kalshi-network
+    profiles:
+      - dev
+    command: >
+      bash -c "
+      uvicorn kalshi_trader.api.health:app --host 0.0.0.0 --port 8000 --reload &
+      streamlit run src/kalshi_trader/dashboard.py --server.port=8501 --server.address=0.0.0.0
+      "
+
+# Named volumes for persistence
+volumes:
+  kalshi-data:
+    driver: local
+  kalshi-logs:
+    driver: local
+  kalshi-reports:
+    driver: local
+
+# Network
+networks:
+  kalshi-network:
+    driver: bridge

@@ -18,6 +18,28 @@
    - Create feature branch with `ralph-ac.sh`
    - Assign task to dev agent
 
+### Ticket Creation (API vs CLI)
+**Use CLI for ticket creation** — the API POST endpoint has issues (REMY-235).
+
+**CLI Command:**
+```bash
+remy add "Title" --type="Research|Dev Task|Bug Fix|Admin TODO" \
+  --priority="Low|Medium|High|Critical" \
+  --description="..." \
+  --project="General|Pantry-Pal|Sleep-Stories|AgentAds|Remy-Blog" \
+  --role="pm|tech_lead|dev|qa|system" \
+  --actor-name="OpenClaw"
+```
+
+**Why CLI:**
+- Has built-in fallback to direct SQLite DB
+- Works even when API server has issues
+- Activity logging still functions
+
+**API for reads only:**
+- GET /api/tickets works fine for queries
+- Use for health checks, filtering, listing
+
 ### Criteria for Action
 - Dev Backlog > 3 days → Spawn agent immediately  
 - To Dev > 2 days → Move to In Dev

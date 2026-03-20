@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Forest Morning Light",
+    "source": "Pexels",
+    "url": "https://www.pexels.com/video/forest-morning-light-857251/",
+    "tags": ["forest", "trees", "sunlight", "nature"],
+    "theme": "nature",
+    "mood": "peaceful",
+    "license": "CC0"
+  },
+  {
+    "title": "Ocean Waves",
+    "source": "Pixabay",
+    "url": "https://pixabay.com/videos/ocean-sea-waves-beach-water-149325/",
+    "tags": ["ocean", "waves", "beach", "water"],
+    "theme": "nature",
+    "mood": "sleep",
+    "license": "CC0"
+  },
+  {
+    "title": "ISS Time Lapse Earth",
+    "source": "NASA",
+    "url": "https://images.nasa.gov/details/iss-timelapse",
+    "tags": ["space", "iss", "earth", "timelapse"],
+    "theme": "space",
+    "mood": "cosmos",
+    "license": "Public Domain"
+  }
+]
