@@ -234,6 +234,12 @@ async def metrics():
 from starlette.responses import Response
 
 
+# ==================== Import Routers ====================
+from .routers import processing
+
+app.include_router(processing.router)
+
+
 # ==================== API Routes ====================
 
 @app.get("/api/v1/info", tags=["API"])

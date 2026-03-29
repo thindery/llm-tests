@@ -132,11 +132,15 @@ class SessionEvent(Base):
     # LLM context
     llm_reasoning = Column(Text, nullable=True)  # Why did agent click here?
     
+    # GDPR Legal Basis - required for tracking compliance
+    legal_basis_id = Column(UUID(as_uuid=True), ForeignKey("legal_basis.id"), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), default=now_utc)
     
     __table_args__ = (
         Index("ix_events_session_timestamp", "session_id", "timestamp_ms"),
         Index("ix_events_type", "event_type"),
+        Index("ix_session_events_legal_basis", "legal_basis_id"),
     )
 
 
@@ -205,4 +209,54 @@ class HealthCheckLog(Base):
     
     __table_args__ = (
         Index("ix_health_overall", "overall_healthy", "created_at"),
+    )
+
+
+class LegalBasis(Base):
+    """GDPR Legal Basis for data processing."""
+    __tablename__ = "legal_basis"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(String(255), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    
+    # GDPR Article 6 basis types
+    basis_type = Column(String(50), nullable=False)  # consent, contract, legal_obligation, vital_interests, public_task, legitimate_interest
+    description = Column(Text, nullable=True)
+    legitimate_interest_reason = Column(Text, nullable=True)  # Required for legitimate_interest basis
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    updated_at = Column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    
+    __table_args__ = (
+        Index("ix_legal_basis_project", "project_id"),
+    )
+
+
+class ProcessingActivity(Base):
+    """GDPR Article 30 Processing Activity Record."""
+    __tablename__ = "processing_activities"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(String(255), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    purpose = Column(Text, nullable=False)
+    
+    # Link to legal basis
+    legal_basis_id = Column(UUID(as_uuid=True), ForeignKey("legal_basis.id"), nullable=False)
+    
+    # Article 30 requirements
+    data_categories = Column(JSON, default=list)  # e.g., ["email", "usage_data", "personal_identifiers"]
+    data_retention_days = Column(Integer, nullable=True)
+    recipients = Column(Text, nullable=True)  # Who receives the data
+    safeguards = Column(Text, nullable=True)  # Security measures (encryption, access controls)
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    updated_at = Column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    
+    __table_args__ = (
+        Index("ix_processing_activities_project", "project_id"),
+        Index("ix_processing_activities_legal_basis", "legal_basis_id"),
     )
