@@ -56,6 +56,11 @@ class User(Base):
     monthly_sessions_used = Column(Integer, default=0)
     monthly_sessions_limit = Column(Integer, default=100)
     
+    # GDPR Data Retention
+    retention_policy_enabled = Column(Boolean, default=False)
+    retention_period_days = Column(Integer, default=90)
+    last_purge_at = Column(DateTime(timezone=True), nullable=True)
+    
     __table_args__ = (
         Index("ix_users_email", "email"),
     )
@@ -88,6 +93,11 @@ class Session(Base):
     storage_backend = Column(String(50), default="local")  # local, r2, s3
     storage_key = Column(String(512), nullable=True)
     data_size_mb = Column(Float, nullable=True)
+    
+    # GDPR Soft Delete / Retention
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deletion_reason = Column(String(100), nullable=True)
+    is_purged = Column(Boolean, default=False)
     
     # Cost tracking (for LLM sessions)
     estimated_cost_usd = Column(Float, default=0.0)
@@ -259,4 +269,76 @@ class ProcessingActivity(Base):
     __table_args__ = (
         Index("ix_processing_activities_project", "project_id"),
         Index("ix_processing_activities_legal_basis", "legal_basis_id"),
+    )
+
+
+class LegalHold(Base):
+    """Legal hold to prevent data deletion during litigation or investigation."""
+    __tablename__ = "legal_holds"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    reason = Column(Text, nullable=False)
+    reference_id = Column(String(255), nullable=True)  # e.g., case number
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    updated_at = Column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    
+    __table_args__ = (
+        Index("ix_legal_holds_session_id", "session_id"),
+        Index("ix_legal_holds_user_id", "user_id"),
+        Index("ix_legal_holds_active", "is_active", "expires_at"),
+        Index("ix_legal_holds_reference_id", "reference_id"),
+    )
+
+
+class ExportJob(Base):
+    """GDPR export job for data portability requests."""
+    __tablename__ = "export_jobs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    session_ids = Column(JSON, default=list)  # List of session IDs to export
+    format = Column(String(50), default="json")  # json, csv, zip
+    status = Column(String(50), default="pending")  # pending, processing, completed, failed
+    
+    storage_key = Column(String(512), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    __table_args__ = (
+        Index("ix_export_jobs_user_id", "user_id"),
+        Index("ix_export_jobs_status", "status"),
+        Index("ix_export_jobs_expires_at", "expires_at"),
+    )
+
+
+class RetentionAuditLog(Base):
+    """Audit log for data retention actions."""
+    __tablename__ = "retention_audit_log"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
+    
+    action = Column(String(100), nullable=False)  # purge, export, legal_hold, settings_update
+    details = Column(JSON, default=dict)  # Additional details
+    performed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    
+    __table_args__ = (
+        Index("ix_retention_audit_user_id", "user_id"),
+        Index("ix_retention_audit_session_id", "session_id"),
+        Index("ix_retention_audit_created_at", "created_at"),
     )

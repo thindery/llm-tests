@@ -49,12 +49,18 @@ async def lifespan(app: FastAPI):
     if not db_healthy:
         logger.warning("Database connection check failed, will retry on demand")
     
+    # Initialize retention worker
+    from .retention_worker import initialize_retention_worker
+    await initialize_retention_worker()
+    
     logger.info("Application startup complete")
     
     yield
     
     # Shutdown
     logger.info("Shutting down...")
+    from .retention_worker import shutdown_retention_worker
+    await shutdown_retention_worker()
     await db_manager.close()
     logger.info("Shutdown complete")
 
@@ -236,8 +242,10 @@ from starlette.responses import Response
 
 # ==================== Import Routers ====================
 from .routers import processing
+from .routers import retention as retention_router
 
 app.include_router(processing.router)
+app.include_router(retention_router.router)
 
 
 # ==================== API Routes ====================
