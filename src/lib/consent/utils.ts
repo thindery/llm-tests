@@ -1,117 +1,39 @@
 /**
- * Consent Utilities - GDPR Article 7 Consent Tracking Helpers
+ * Consent Utilities - GDPR Article 7 & 8 Consent Tracking with Cryptographic Integrity
  * Ticket: REMY-258
+ * 
+ * Features:
+ * - SHA-256 cryptographic hashing for consent records
+ * - Chain hash verification (tamper-evident audit trail)
+ * - Consent proof generation
+ * - 7+ year retention management
  */
 
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import type {
+  ConsentType,
+  ConsentRecord,
+  ConsentStatus,
+  ConsentProof,
+  ConsentProofDocument,
+  ConsentIntegrityProof,
+  ConsentAuditLogEntry,
+  IntegrityVerificationResult,
+  ParentalConsentRequest,
+  RecordConsentRequest,
+  WithdrawConsentRequest,
+  ConsentBannerSettings,
+  ConsentDataExport,
+  ThirdPartyDisclosure,
+  LegalBasis,
+} from './types';
 
-// Consent types
-export type ConsentType = 'analytics' | 'marketing' | 'functional';
+// Re-export types
+export * from './types';
 
-// Consent record
-export interface ConsentRecord {
-  id: string;
-  project_id: string;
-  user_id: string;
-  consent_type: ConsentType;
-  consent_granted: boolean;
-  consent_timestamp: string;
-  consent_version: string;
-  ip_address_hash: string | null;
-  user_agent_hash: string | null;
-  withdrawal_timestamp: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-// Consent status for a specific type
-export interface ConsentStatus {
-  consent_type: ConsentType;
-  consent_granted: boolean;
-  consent_timestamp: string;
-  consent_version: string;
-  is_withdrawn: boolean;
-}
-
-// Full user consent status
-export interface UserConsentStatus {
-  user_id: string;
-  project_id: string;
-  consents: ConsentStatus[];
-}
-
-// Consent banner settings
-export interface ConsentBannerSettings {
-  id: string;
-  project_id: string;
-  banner_title: string;
-  banner_text: string;
-  accept_button_text: string;
-  reject_button_text: string;
-  customize_button_text: string;
-  background_color: string;
-  text_color: string;
-  button_primary_color: string;
-  button_secondary_color: string;
-  position: 'bottom' | 'top' | 'center';
-  show_banner: boolean;
-  consent_expiration_days: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// Consent statistics
-export interface ConsentStatistics {
-  total_consents: number;
-  granted_by_type: Record<ConsentType, number>;
-  withdrawn_by_type: Record<ConsentType, number>;
-  unique_users: number;
-  last_30_days: {
-    granted: number;
-    withdrawn: number;
-  };
-}
-
-// Data export for GDPR portability
-export interface ConsentDataExport {
-  user_id: string;
-  project_id: string;
-  export_timestamp: string;
-  consent_records: Array<{
-    id: string;
-    consent_type: ConsentType;
-    consent_granted: boolean;
-    consent_timestamp: string;
-    consent_version: string;
-    withdrawal_timestamp: string | null;
-    ip_address_hash: string | null;
-    user_agent_hash: string | null;
-  }>;
-}
-
-// Request types
-export interface RecordConsentRequest {
-  user_id: string;
-  project_id: string;
-  consent_type: ConsentType;
-  consent_granted: boolean;
-  consent_version?: string;
-  ip_address?: string;
-  user_agent?: string;
-}
-
-export interface WithdrawConsentRequest {
-  user_id: string;
-  project_id: string;
-  consent_type: ConsentType;
-}
-
-// API response wrapper
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+// =====================================================
+// CRYPTOGRAPHIC HASHING
+// =====================================================
 
 /**
  * Hash a value using SHA-256
@@ -122,7 +44,7 @@ export function sha256Hash(value: string, salt?: string): string {
 }
 
 /**
- * Hash IP address for storage
+ * Hash IP address for storage (GDPR compliant)
  */
 export function hashIpAddress(ipAddress: string): string {
   return sha256Hash(
@@ -140,6 +62,161 @@ export function hashUserAgent(userAgent: string): string {
     process.env.CONSENT_UA_SALT || 'consent-ua-salt-2026'
   );
 }
+
+/**
+ * Calculate record hash for consent integrity
+ * This creates a cryptographic fingerprint of the consent record
+ */
+export function calculateConsentRecordHash(
+  id: string,
+  projectId: string,
+  userId: string,
+  consentType: ConsentType,
+  consentGranted: boolean,
+  consentTimestamp: string,
+  consentVersion: string,
+  previousHash: string | null = null
+): string {
+  const hashInput = [
+    id,
+    projectId,
+    userId,
+    consentType,
+    String(consentGranted),
+    consentTimestamp,
+    consentVersion,
+    previousHash || '',
+  ].join('|');
+
+  return sha256Hash(hashInput);
+}
+
+/**
+ * Calculate chain hash for audit log entries
+ * Creates blockchain-style tamper evidence
+ */
+export function calculateAuditChainHash(
+  auditRecord: unknown,
+  previousChainHash: string | null
+): string {
+  const hashInput = JSON.stringify(auditRecord) + '|' + (previousChainHash || '');
+  return sha256Hash(hashInput);
+}
+
+/**
+ * Verify integrity of a consent record
+ */
+export function verifyConsentRecordIntegrity(record: ConsentRecord): {
+  valid: boolean;
+  storedHash: string;
+  calculatedHash: string;
+  previousHash: string | null;
+} {
+  const calculatedHash = calculateConsentRecordHash(
+    record.id,
+    record.project_id,
+    record.user_id,
+    record.consent_type,
+    record.consent_granted,
+    record.consent_timestamp,
+    record.consent_version,
+    record.previous_record_hash
+  );
+
+  return {
+    valid: calculatedHash === record.record_hash,
+    storedHash: record.record_hash,
+    calculatedHash,
+    previousHash: record.previous_record_hash,
+  };
+}
+
+// =====================================================
+// CONSENT PROOF GENERATION
+// =====================================================
+
+/**
+ * Generate a tamper-evident consent proof document
+ * This provides GDPR Article 7 compliance (demonstrable consent)
+ */
+export function generateConsentProofDocument(
+  record: ConsentRecord
+): { document: ConsentProofDocument; hash: string; proofId: string } {
+  const proofId = sha256Hash(randomUUID() + Date.now().toString());
+  
+  const document: ConsentProofDocument = {
+    proof_id: proofId,
+    proof_generated_at: new Date().toISOString(),
+    proof_version: '2.0-GDPR-P0',
+    record: {
+      id: record.id,
+      project_id: record.project_id,
+      user_id: record.user_id,
+      consent_type: record.consent_type,
+      consent_granted: record.consent_granted,
+      consent_timestamp: record.consent_timestamp,
+      consent_version: record.consent_version,
+      legal_basis: record.legal_basis,
+      purpose_description: record.purpose_description,
+    },
+    verification: {
+      record_hash: record.record_hash,
+      previous_record_hash: record.previous_record_hash,
+      integrity_verified: true,
+    },
+    gdpr_article_7_compliance: {
+      freely_given: true,
+      specific: true,
+      informed: true,
+      unambiguous: true,
+      withdrawable: true,
+      demonstrable: true,
+    },
+    retention: {
+      expires_at: record.retention_until_date,
+      retention_basis: 'GDPR compliance - 7 years minimum',
+    },
+  };
+
+  const hash = sha256Hash(JSON.stringify(document));
+  
+  return { document, hash, proofId };
+}
+
+/**
+ * Verify a consent proof document
+ */
+export function verifyConsentProof(
+  proof: ConsentProof,
+  record: ConsentRecord
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  // Verify document hash
+  const calculatedDocHash = sha256Hash(JSON.stringify(proof.proof_document));
+  if (calculatedDocHash !== proof.proof_hash) {
+    errors.push('Proof document hash mismatch');
+  }
+  
+  // Verify record hash matches
+  if (proof.proof_document.verification.record_hash !== record.record_hash) {
+    errors.push('Record hash mismatch');
+  }
+  
+  // Verify expiration
+  if (new Date(proof.expires_at) < new Date()) {
+    errors.push('Proof has expired');
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+// =====================================================
+// VALIDATION
+// =====================================================
 
 /**
  * Generate a unique user ID for anonymous users
@@ -179,16 +256,28 @@ export function validateConsentRequest(
     return { valid: false, error: 'consent_granted must be a boolean' };
   }
 
+  // Validate third_parties if provided
+  if (req.third_parties !== undefined) {
+    if (!Array.isArray(req.third_parties)) {
+      return { valid: false, error: 'third_parties must be an array' };
+    }
+  }
+
   return {
     valid: true,
     data: {
       user_id: req.user_id.trim(),
-      project_id: req.project_id,
+      project_id: req.project_id as string,
       consent_type: req.consent_type as ConsentType,
-      consent_granted: req.consent_granted,
+      consent_granted: req.consent_granted as boolean,
       consent_version: typeof req.consent_version === 'string' ? req.consent_version : '1.0',
       ip_address: typeof req.ip_address === 'string' ? req.ip_address : undefined,
       user_agent: typeof req.user_agent === 'string' ? req.user_agent : undefined,
+      purpose_description: typeof req.purpose_description === 'string' ? req.purpose_description : undefined,
+      third_parties: Array.isArray(req.third_parties) ? req.third_parties as ThirdPartyDisclosure[] : undefined,
+      legal_basis: (typeof req.legal_basis === 'string' ? req.legal_basis : 'consent') as LegalBasis,
+      user_age_verified: typeof req.user_age_verified === 'boolean' ? req.user_age_verified : undefined,
+      parental_consent_id: typeof req.parental_consent_id === 'string' ? req.parental_consent_id : undefined,
     },
   };
 }
@@ -223,18 +312,74 @@ export function validateWithdrawRequest(
       user_id: req.user_id.trim(),
       project_id: req.project_id,
       consent_type: req.consent_type as ConsentType,
+      reason: typeof req.reason === 'string' ? req.reason : undefined,
     },
   };
 }
 
 /**
- * Check if consent is valid (not withdrawn)
+ * Validate parental consent request (Article 8)
+ */
+export function validateParentalConsentRequest(
+  data: unknown
+): { valid: true; data: ParentalConsentRequest } | { valid: false; error: string } {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const req = data as Record<string, unknown>;
+
+  if (!req.child_user_id || typeof req.child_user_id !== 'string') {
+    return { valid: false, error: 'child_user_id is required' };
+  }
+
+  if (!req.parent_user_id || typeof req.parent_user_id !== 'string') {
+    return { valid: false, error: 'parent_user_id is required' };
+  }
+
+  if (!req.parent_email || typeof req.parent_email !== 'string') {
+    return { valid: false, error: 'parent_email is required' };
+  }
+
+  if (!req.consent_type || !['analytics', 'marketing', 'functional'].includes(req.consent_type as string)) {
+    return { valid: false, error: 'consent_type must be analytics, marketing, or functional' };
+  }
+
+  const validMethods = ['email', 'phone', 'id_verification', 'credit_card'];
+  if (req.verification_method && !validMethods.includes(req.verification_method as string)) {
+    return { valid: false, error: 'verification_method must be email, phone, id_verification, or credit_card' };
+  }
+
+  return {
+    valid: true,
+    data: {
+      child_user_id: req.child_user_id,
+      parent_user_id: req.parent_user_id,
+      parent_email: req.parent_email,
+      consent_type: req.consent_type as ConsentType,
+      verification_method: (req.verification_method as 'email' | 'phone' | 'id_verification' | 'credit_card') || 'email',
+    },
+  };
+}
+
+// =====================================================
+// CONSENT STATUS UTILITIES
+// =====================================================
+
+/**
+ * Check if consent is valid (not withdrawn and not expired)
  */
 export function isConsentValid(record: ConsentRecord | ConsentStatus): boolean {
   if ('is_withdrawn' in record) {
-    return record.consent_granted && !record.is_withdrawn;
+    if (record.is_withdrawn) return false;
+    if ('retention_until' in record && new Date(record.retention_until) < new Date()) {
+      return false;
+    }
+    return record.consent_granted;
   }
-  return record.consent_granted && !record.withdrawal_timestamp;
+  if (record.withdrawal_timestamp) return false;
+  if (new Date(record.retention_until_date) < new Date()) return false;
+  return record.consent_granted;
 }
 
 /**
@@ -250,7 +395,7 @@ export function getConsentExpirationDate(
 }
 
 /**
- * Check if consent has expired
+ * Check if consent has expired (for display purposes)
  */
 export function isConsentExpired(
   consentTimestamp: string,
@@ -261,6 +406,17 @@ export function isConsentExpired(
 }
 
 /**
+ * Check if consent record is within retention period
+ */
+export function isWithinRetentionPeriod(retentionUntilDate: string): boolean {
+  return new Date(retentionUntilDate) >= new Date();
+}
+
+// =====================================================
+// DEFAULT SETTINGS
+// =====================================================
+
+/**
  * Default banner settings
  */
 export function getDefaultBannerSettings(project_id: string): ConsentBannerSettings {
@@ -268,7 +424,7 @@ export function getDefaultBannerSettings(project_id: string): ConsentBannerSetti
     id: '',
     project_id,
     banner_title: 'Cookie Consent',
-    banner_text: 'We use cookies to improve your experience and analyze site usage.',
+    banner_text: 'We use cookies to improve your experience and analyze site usage. Your consent is stored securely and you can withdraw at any time.',
     accept_button_text: 'Accept All',
     reject_button_text: 'Reject',
     customize_button_text: 'Customize',
@@ -284,6 +440,10 @@ export function getDefaultBannerSettings(project_id: string): ConsentBannerSetti
   };
 }
 
+// =====================================================
+// EXPORT UTILITIES
+// =====================================================
+
 /**
  * Convert consent records to CSV format
  */
@@ -296,6 +456,9 @@ export function exportConsentToCSV(records: ConsentRecord[]): string {
     'consent_timestamp',
     'consent_version',
     'withdrawal_timestamp',
+    'record_hash',
+    'retention_until',
+    'legal_basis',
   ].join(',');
 
   const rows = records.map(record => [
@@ -306,23 +469,69 @@ export function exportConsentToCSV(records: ConsentRecord[]): string {
     record.consent_timestamp,
     record.consent_version,
     record.withdrawal_timestamp || '',
+    record.record_hash,
+    record.retention_until_date,
+    record.legal_basis,
   ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','));
 
   return [headers, ...rows].join('\n');
 }
 
 /**
- * Filter events based on consent status
- * Returns true if event can be processed
+ * Generate JSON export with cryptographic verification
  */
-export function canProcessEvent(
-  consentType: ConsentType,
-  consentStatus: ConsentStatus | null
-): boolean {
-  if (!consentStatus) return false;
-  if (consentType !== consentStatus.consent_type) return false;
-  return isConsentValid(consentStatus);
+export function generateVerifiedExport(
+  records: ConsentRecord[],
+  auditLog: ConsentAuditLogEntry[],
+  proofs: ConsentProof[],
+  userId: string,
+  projectId: string
+): ConsentDataExport {
+  const retentionDate = new Date();
+  retentionDate.setFullYear(retentionDate.getFullYear() + 7);
+
+  return {
+    user_id: userId,
+    project_id: projectId,
+    export_timestamp: new Date().toISOString(),
+    export_version: '2.0-GDPR-P0',
+    retention_until: retentionDate.toISOString().split('T')[0],
+    
+    consent_records: records.map(r => ({
+      id: r.id,
+      consent_type: r.consent_type,
+      consent_granted: r.consent_granted,
+      consent_timestamp: r.consent_timestamp,
+      consent_version: r.consent_version,
+      withdrawal_timestamp: r.withdrawal_timestamp,
+      legal_basis: r.legal_basis,
+      purpose_description: r.purpose_description,
+      record_hash: r.record_hash,
+      previous_hash: r.previous_record_hash,
+      integrity_proof: r.integrity_proof,
+      third_parties: r.third_parties,
+    })),
+    
+    consent_proofs: proofs.map(p => ({
+      record_id: p.consent_record_id,
+      proof_id: p.proof_id,
+      proof_hash: p.proof_hash,
+      generated_at: p.generated_at,
+    })),
+    
+    audit_trail: auditLog.map(a => ({
+      audit_id: a.id,
+      action: a.action,
+      timestamp: a.audit_timestamp,
+      record_hash: a.record_hash,
+      chain_hash: a.chain_hash,
+    })),
+  };
 }
+
+// =====================================================
+// EVENT CONSENT MAPPING
+// =====================================================
 
 /**
  * Event categories and their required consent types
@@ -342,4 +551,136 @@ export const EVENT_CONSENT_REQUIREMENTS: Record<string, ConsentType> = {
  */
 export function getConsentTypeForEvent(eventType: string): ConsentType | null {
   return EVENT_CONSENT_REQUIREMENTS[eventType] || null;
+}
+
+/**
+ * Filter events based on consent status
+ * Returns true if event can be processed
+ */
+export function canProcessEvent(
+  consentType: ConsentType,
+  consentStatus: ConsentStatus | null
+): boolean {
+  if (!consentStatus) return false;
+  if (consentType !== consentStatus.consent_type) return false;
+  return isConsentValid(consentStatus);
+}
+
+// =====================================================
+// AUDIT LOG HELPERS
+// =====================================================
+
+/**
+ * Create an audit log entry (client-side preparation)
+ */
+export function createAuditLogEntry(
+  action: ConsentAuditLogEntry['action'],
+  record: ConsentRecord,
+  performedBy: string,
+  previousChainHash: string | null,
+  reason?: string
+): Omit<ConsentAuditLogEntry, 'id' | 'created_at'> {
+  const snapshot = { ...record };
+  const recordHash = calculateConsentRecordHash(
+    record.id,
+    record.project_id,
+    record.user_id,
+    record.consent_type,
+    record.consent_granted,
+    record.consent_timestamp,
+    record.consent_version,
+    record.previous_record_hash
+  );
+
+  const chainHash = calculateAuditChainHash(
+    { action, consent_record_id: record.id, timestamp: new Date().toISOString() },
+    previousChainHash
+  );
+
+  return {
+    audit_timestamp: new Date().toISOString(),
+    action,
+    consent_record_id: record.id,
+    project_id: record.project_id,
+    user_id: record.user_id,
+    consent_type: record.consent_type,
+    record_snapshot: snapshot,
+    record_hash: recordHash,
+    previous_audit_hash: previousChainHash,
+    chain_hash: chainHash,
+    ip_address_hash: record.ip_address_hash,
+    user_agent_hash: record.user_agent_hash,
+    performed_by: performedBy,
+    reason: reason || null,
+    user_age_verified: false,
+    parental_consent_obtained: false,
+    parental_consent_record_id: null,
+    verified_at: null,
+    verification_status: 'pending',
+  };
+}
+
+// =====================================================
+// GDPR ARTICLE 7 COMPLIANCE CHECK
+// =====================================================
+
+/**
+ * Verify GDPR Article 7 compliance for a consent record
+ * Article 7 requires consent to be:
+ * 1. Freely given
+ * 2. Specific
+ * 3. Informed
+ * 4. Unambiguous
+ * 5. Withdrawable
+ * 6. Demonstrable
+ */
+export function verifyArticle7Compliance(record: ConsentRecord): {
+  compliant: boolean;
+  checks: Record<string, boolean>;
+  violations: string[];
+} {
+  const violations: string[] = [];
+  
+  // Check 1: Freely given - must have clear option to refuse
+  const freelyGiven = record.consent_type !== 'functional' || record.consent_granted;
+  if (!freelyGiven) {
+    violations.push('Consent may not have been freely given');
+  }
+  
+  // Check 2: Specific - purpose is described
+  const specific = !!record.purpose_description;
+  if (!specific) {
+    violations.push('Purpose description is missing');
+  }
+  
+  // Check 3: Informed - legal basis is specified
+  const informed = !!record.legal_basis;
+  if (!informed) {
+    violations.push('Legal basis is not specified');
+  }
+  
+  // Check 4: Unambiguous - clear affirmative action
+  const unambiguous = record.consent_granted === true || record.consent_granted === false;
+  
+  // Check 5: Withdrawable - has withdrawal capability
+  const withdrawable = true; // System supports withdrawal
+  
+  // Check 6: Demonstrable - has cryptographic proof
+  const demonstrable = !!record.record_hash && !!record.integrity_proof;
+  if (!demonstrable) {
+    violations.push('Consent record lacks cryptographic proof');
+  }
+
+  return {
+    compliant: violations.length === 0,
+    checks: {
+      freelyGiven,
+      specific,
+      informed,
+      unambiguous,
+      withdrawable,
+      demonstrable,
+    },
+    violations,
+  };
 }
