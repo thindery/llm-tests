@@ -48,4 +48,5 @@ clawd/
 temp/
 tts-env/
 memory/
+.db-backups-auto-thindery/
 .env.local
