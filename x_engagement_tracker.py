@@ -15,13 +15,21 @@ STATS_PATH = os.path.join(WORKSPACE, 'data', 'x_stats.json')
 
 def load_env():
     """Load environment variables from .env file"""
+    print(f"🔍 Looking for .env at: {ENV_PATH}", file=sys.stderr)
     if os.path.exists(ENV_PATH):
+        print(f"✅ Found .env file", file=sys.stderr)
         with open(ENV_PATH) as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
+                    # Strip quotes if present
+                    value = value.strip('"\'')
                     os.environ[key] = value
+                    if 'SECRET' not in key and 'TOKEN' not in key:
+                        print(f"   Loaded: {key}={value}", file=sys.stderr)
+    else:
+        print(f"❌ .env file not found!", file=sys.stderr)
 
 def load_previous_stats():
     """Load previous stats from JSON file"""
