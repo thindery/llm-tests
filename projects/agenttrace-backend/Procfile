@@ -1,0 +1,2 @@
+web: hypercorn src.agenttrace_backend.main:app --bind 0.0.0.0:$PORT --worker-class uvloop
+release: alembic upgrade head

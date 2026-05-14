@@ -1,0 +1,15 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "hypercorn src.agenttrace_backend.main:app --bind 0.0.0.0:$PORT --worker-class uvloop"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[environments.production.deploy]
+startCommand = "hypercorn src.agenttrace_backend.main:app --bind 0.0.0.0:$PORT --worker-class uvloop --workers 4"
+
+[environments.staging.deploy]
+startCommand = "hypercorn src.agenttrace_backend.main:app --bind 0.0.0.0:$PORT --worker-class uvloop --workers 1"
