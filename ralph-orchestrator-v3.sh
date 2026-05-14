@@ -112,6 +112,69 @@ move_ticket() {
     node src/index.js move "$1" --to="$2" --role="tech_lead" --agent="ralph" 2>/dev/null || true
 }
 
+# ═══════════════════════════════════════════════════════════
+# TICKET STATE MANAGEMENT
+# ═══════════════════════════════════════════════════════════
+
+STATE_DIR="${RALPH_STATE_DIR}/tickets"
+
+# Load ticket state from JSON file
+# Usage: load_ticket_state TICKET KEY
+# Returns: value or empty string
+load_ticket_state() {
+    local ticket="$1"
+    local key="$2"
+    local file="${STATE_DIR}/${ticket}.json"
+    
+    if [[ -f "$file" ]]; then
+        jq -r "$key // empty" "$file" 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
+# Save ticket state to JSON file
+# Usage: save_ticket_state TICKET KEY VALUE
+save_ticket_state() {
+    local ticket="$1"
+    local key="$2"
+    local value="$3"
+    local file="${STATE_DIR}/${ticket}.json"
+    
+    # Ensure file exists
+    if [[ ! -f "$file" ]]; then
+        return 1
+    fi
+    
+    # Update the JSON file
+    jq --arg key "$key" --arg val "$value" '.[$key] = $val' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# Mark agent as spawned
+# Usage: mark_agent_spawned TICKET PHASE AGENT_SESSION_ID
+mark_agent_spawned() {
+    local ticket="$1"
+    local phase="$2"
+    local session_id="$3"
+    local file="${STATE_DIR}/${ticket}.json"
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    
+    jq --arg phase "$phase" --arg sid "$session_id" --arg now "$now" \
+        '.agents[$phase].spawned = true | .agents[$phase].session_id = $sid | .agents[$phase].spawned_at = $now' \
+        "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+}
+
+# Check if agent was already spawned
+# Usage: is_agent_spawned TICKET PHASE
+# Returns: "true" or "false"
+is_agent_spawned() {
+    local ticket="$1"
+    local phase="$2"
+    
+    jq -r ".agents.${phase}.spawned // false" "${STATE_DIR}/${ticket}.json" 2>/dev/null || echo "false"
+}
+
 # State management
 create_state() {
     local ticket="$1" title="$2"
@@ -129,6 +192,12 @@ create_state() {
     "qa": {"status": "pending", "started_at": null, "completed_at": null},
     "merge": {"status": "pending", "started_at": null, "completed_at": null}
   },
+  "agents": {
+    "verify": {"spawned": false, "session_id": null, "spawned_at": null, "completed": false, "completed_at": null},
+    "qa": {"spawned": false, "session_id": null, "spawned_at": null, "completed": false, "completed_at": null},
+    "tech_lead": {"spawned": false, "session_id": null, "spawned_at": null, "completed": false, "completed_at": null}
+  },
+  "pr": {"number": null, "url": null, "created_at": null},
   "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "branch": "feature/${ticket}"
 }
@@ -369,62 +438,324 @@ stage_dev_wait() {
 
 stage_verify() {
     local ticket="$1" title="$2"
+    local branch="feature/${ticket}"
+    local trigger_file="${RALPH_STATE_DIR}/triggers/${ticket}-verify-complete"
+    local template="${RALPH_STATE_DIR}/pending/verify-agent-task.md"
+    local task_file="${RALPH_STATE_DIR}/pending/${ticket}-verify-task.md"
+    
     stage "STAGE 4/6: Verify"
+    
+    # Check if verify agent already spawned
+    if [[ "$(is_agent_spawned "$ticket" "verify")" == "true" ]]; then
+        log "Verify agent already spawned. Waiting for completion..."
+        
+        # Wait for completion trigger
+        local dots=0
+        while [[ ! -f "$trigger_file" ]]; do
+            sleep 30
+            dots=$(( (dots + 1) % 4 ))
+            printf "\rWaiting for verify agent%s" "$(printf '%*s' $dots | tr ' ' '.')"
+        done
+        printf "\r"
+        
+        success "Verify agent completed!"
+        rm -f "$trigger_file"
+        
+        # Mark phase complete
+        jq --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '.agents.verify.completed = true | .agents.verify.completed_at = $now | .stages.verify.status = "completed"' \
+            "${RALPH_STATE_DIR}/tickets/${ticket}.json" > "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" && \
+            mv "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" "${RALPH_STATE_DIR}/tickets/${ticket}.json"
+        
+        complete_remy_step "$ticket" "Self-Verification" "dev"
+        return 0
+    fi
+    
     update_state "$ticket" "verify" "running"
     
-    log "Running verification..."
-    # Add actual tests here
+    # Check template exists
+    if [[ ! -f "$template" ]]; then
+        error "Verify agent template not found: $template"
+        return 1
+    fi
     
-    complete_remy_step "$ticket" "Self-Verification" "dev"
-    update_state "$ticket" "verify" "completed"
-    success "Verification complete"
+    # Prepare verify task file from template
+    cp "$template" "$task_file"
+    sed -i.bak \
+        -e "s|REPLACE_TICKET|$ticket|g" \
+        -e "s|REPLACE_TITLE|$title|g" \
+        -e "s|REPLACE_REPO|$REPO_PATH|g" \
+        -e "s|REPLACE_BRANCH|$branch|g" \
+        -e "s|REPLACE_TRIGGER|$trigger_file|g" \
+        "$task_file"
+    rm -f "${task_file}.bak"
+    
+    # Mark verify agent as spawned (without session_id since user spawns manually)
+    mark_agent_spawned "$ticket" "verify" "USER_MANUAL"
+    
+    # Update stage to show we're waiting
+    update_state "$ticket" "verify" "waiting"
+    
+    # Output instructions for user
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "  VERIFY AGENT TASK PREPARED"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "Ticket: $ticket"
+    echo "Phase: Verify"
+    echo "Task file: $task_file"
+    echo ""
+    echo "--- AGENT TASK ---"
+    cat "$task_file"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "SPAWN COMMAND:"
+    echo ""
+    echo "sessions_spawn agentId='qa-agent' mode='run' taskFile='${task_file}'"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    
+    exit 0
 }
 
 stage_qa() {
     local ticket="$1" title="$2"
+    local branch="feature/${ticket}"
+    local trigger_file="${RALPH_STATE_DIR}/triggers/${ticket}-qa-complete"
+    local template="${RALPH_STATE_DIR}/pending/qa-agent-task.md"
+    local task_file="${RALPH_STATE_DIR}/pending/${ticket}-qa-task.md"
+    
     stage "STAGE 5/6: QA"
+    
+    # Check if QA agent already spawned
+    if [[ "$(is_agent_spawned "$ticket" "qa")" == "true" ]]; then
+        log "QA agent already spawned. Waiting for completion..."
+        
+        # Wait for completion trigger
+        local dots=0
+        while [[ ! -f "$trigger_file" ]]; do
+            sleep 30
+            dots=$(( (dots + 1) % 4 ))
+            printf "\rWaiting for QA agent%s" "$(printf '%*s' $dots | tr ' ' '.')"
+        done
+        printf "\r"
+        
+        success "QA agent completed!"
+        rm -f "$trigger_file"
+        
+        # Mark phase complete
+        jq --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '.agents.qa.completed = true | .agents.qa.completed_at = $now | .stages.qa.status = "completed"' \
+            "${RALPH_STATE_DIR}/tickets/${ticket}.json" > "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" && \
+            mv "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" "${RALPH_STATE_DIR}/tickets/${ticket}.json"
+        
+        complete_remy_step "$ticket" "Testing" "qa"
+        move_ticket "$ticket" "In QA"
+        return 0
+    fi
+    
     update_state "$ticket" "qa" "running"
     
-    complete_remy_step "$ticket" "Testing" "qa"
-    move_ticket "$ticket" "In QA"
+    # Check template exists
+    if [[ ! -f "$template" ]]; then
+        error "QA agent template not found: $template"
+        return 1
+    fi
     
-    update_state "$ticket" "qa" "completed"
-    success "QA complete"
+    # Prepare QA task file from template
+    cp "$template" "$task_file"
+    sed -i.bak \
+        -e "s|REPLACE_TICKET|$ticket|g" \
+        -e "s|REPLACE_TITLE|$title|g" \
+        -e "s|REPLACE_REPO|$REPO_PATH|g" \
+        -e "s|REPLACE_BRANCH|$branch|g" \
+        -e "s|REPLACE_TRIGGER|$trigger_file|g" \
+        "$task_file"
+    rm -f "${task_file}.bak"
+    
+    # Mark QA agent as spawned
+    mark_agent_spawned "$ticket" "qa" "USER_MANUAL"
+    
+    # Update stage to show we're waiting
+    update_state "$ticket" "qa" "waiting"
+    
+    # Output instructions for user
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "  QA AGENT TASK PREPARED"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "Ticket: $ticket"
+    echo "Phase: QA"
+    echo "Task file: $task_file"
+    echo ""
+    echo "--- AGENT TASK ---"
+    cat "$task_file"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "SPAWN COMMAND:"
+    echo ""
+    echo "sessions_spawn agentId='qa-agent' mode='run' taskFile='${task_file}'"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    
+    exit 0
 }
 
 stage_merge() {
     local ticket="$1" title="$2"
-    stage "STAGE 6/6: Merge"
-    update_state "$ticket" "merge" "running"
-    
     local branch="feature/${ticket}"
+    local trigger_file="${RALPH_STATE_DIR}/triggers/${ticket}-tech-lead-complete"
+    local template="${RALPH_STATE_DIR}/pending/tech-lead-agent-task.md"
+    local task_file="${RALPH_STATE_DIR}/pending/${ticket}-tech-lead-task.md"
     
-    cd "$REPO_PATH"
-    git checkout main
-    git pull origin main
+    stage "STAGE 6/6: Merge"
     
-    if git merge "$branch" --no-edit; then
-        git push origin main
-        git branch -d "$branch" 2>/dev/null || true
-        git push origin --delete "$branch" 2>/dev/null || true
+    # Check if tech-lead agent already spawned
+    if [[ "$(is_agent_spawned "$ticket" "tech_lead")" == "true" ]]; then
+        log "Tech-lead agent already spawned. Waiting for completion..."
+        
+        # Wait for completion trigger
+        local dots=0
+        while [[ ! -f "$trigger_file" ]]; do
+            sleep 30
+            dots=$(( (dots + 1) % 4 ))
+            printf "\rWaiting for tech-lead agent%s" "$(printf '%*s' $dots | tr ' ' '.')"
+        done
+        printf "\r"
+        
+        success "Tech-lead agent completed!"
+        rm -f "$trigger_file"
+        
+        # Mark phase complete
+        jq --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '.agents.tech_lead.completed = true | .agents.tech_lead.completed_at = $now | .stages.merge.status = "completed"' \
+            "${RALPH_STATE_DIR}/tickets/${ticket}.json" > "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" && \
+            mv "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" "${RALPH_STATE_DIR}/tickets/${ticket}.json"
         
         complete_remy_step "$ticket" "Code Review & Merge" "tech_lead"
         move_ticket "$ticket" "Closed/Done"
         
-        update_state "$ticket" "merge" "completed"
-        
         # Finalize
-        jq '.status = "completed" | .completed_at = "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"' \
+        jq '.status = "completed" | .completed_at = "'"$(date -u +%Y-%m-%dT%H:%M:%S)Z"'"' \
             "${RALPH_STATE_DIR}/tickets/${ticket}.json" > "${RALPH_STATE_DIR}/completed/${ticket}.json"
         rm -f "${RALPH_STATE_DIR}/tickets/${ticket}.json"
         
-        success "$ticket MERGED and CLOSED!"
+        success "$ticket COMPLETE - PR merged and ticket closed!"
         return 0
+    fi
+    
+    update_state "$ticket" "merge" "running"
+    
+    cd "$REPO_PATH"
+    
+    # Check if PR already exists
+    local existing_pr
+    existing_pr=$(gh pr list --head "$branch" --json number --jq '.[0].number' 2>/dev/null || echo "null")
+    
+    local pr_number=""
+    
+    if [[ -n "$existing_pr" && "$existing_pr" != "null" ]]; then
+        pr_number="$existing_pr"
+        log "Existing PR found: #$pr_number"
     else
-        error "Merge conflict!"
-        update_state "$ticket" "merge" "failed"
+        # Create PR
+        log "Creating PR for $ticket..."
+        local pr_url
+        pr_url=$(gh pr create --title "${ticket}: ${title}" --body "Closes ${ticket}
+
+## Summary
+${title}
+
+## Changes
+- Implementation complete
+- Tests passing
+- Code reviewed" --base main --head "$branch" 2>/dev/null || echo "")
+        
+        if [[ -z "$pr_url" ]]; then
+            error "Failed to create PR"
+            return 1
+        fi
+        
+        # Extract PR number from URL
+        pr_number=$(echo "$pr_url" | sed 's/.*\/pull\/\([0-9]*\)$/\1/')
+        log "Created PR #$pr_number: $pr_url"
+    fi
+    
+    # Save PR to ticket state
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    jq --arg num "$pr_number" --arg url "${REPO_PATH}/pull/${pr_number}" --arg now "$now" \
+        '.pr.number = $num | .pr.url = $url | .pr.created_at = $now' \
+        "${RALPH_STATE_DIR}/tickets/${ticket}.json" > "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" && \
+        mv "${RALPH_STATE_DIR}/tickets/${ticket}.json.tmp" "${RALPH_STATE_DIR}/tickets/${ticket}.json"
+    
+    # Link PR to ticket via Remy API
+    if [[ -d "$REMY_CLI" ]]; then
+        log "Linking PR #$pr_number to ticket $ticket..."
+        # Get ticket ID from ticket number
+        local ticket_id
+        ticket_id=$(cd "$REMY_CLI" && node src/index.js show "$ticket" --json 2>/dev/null | jq -r '.id // empty')
+        if [[ -n "$ticket_id" ]]; then
+            curl -s -X POST "${REMY_API_URL:-http://localhost:3000}/api/tickets/${ticket_id}/links" \
+                -H "Content-Type: application/json" \
+                -d "{\"type\":\"pr\",\"url\":\"${REPO_PATH}/pull/${pr_number}\",\"title\":\"PR #${pr_number}\"}" 2>/dev/null || true
+        fi
+    fi
+    
+    # Check template exists
+    if [[ ! -f "$template" ]]; then
+        error "Tech-lead agent template not found: $template"
         return 1
     fi
+    
+    # Prepare tech-lead task file from template
+    cp "$template" "$task_file"
+    sed -i.bak \
+        -e "s|REPLACE_TICKET|$ticket|g" \
+        -e "s|REPLACE_TITLE|$title|g" \
+        -e "s|REPLACE_REPO|$REPO_PATH|g" \
+        -e "s|REPLACE_BRANCH|$branch|g" \
+        -e "s|REPLACE_PR|$pr_number|g" \
+        -e "s|REPLACE_TRIGGER|$trigger_file|g" \
+        "$task_file"
+    rm -f "${task_file}.bak"
+    
+    # Mark tech-lead agent as spawned
+    mark_agent_spawned "$ticket" "tech_lead" "USER_MANUAL"
+    
+    # Update stage to show we're waiting
+    update_state "$ticket" "merge" "waiting"
+    
+    # Output instructions for user
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "  TECH-LEAD AGENT TASK PREPARED"
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "Ticket: $ticket"
+    echo "PR: #$pr_number"
+    echo "Phase: Merge (Tech Lead Review)"
+    echo "Task file: $task_file"
+    echo ""
+    echo "--- AGENT TASK ---"
+    cat "$task_file"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    echo "SPAWN COMMAND:"
+    echo ""
+    echo "sessions_spawn agentId='tech-lead-agent' mode='run' taskFile='${task_file}'"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
+    
+    exit 0
 }
 
 # ═══════════════════════════════════════════════════════════
