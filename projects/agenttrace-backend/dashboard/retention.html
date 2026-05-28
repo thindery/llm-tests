@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Retention Settings - AgentTrace</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 24px;
+        }
+        
+        header p {
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #1a1a2e;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .form-group input[type="number"],
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #357abd;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .info-text {
+            color: #666;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            margin-bottom: 16px;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .api-response {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🛡️ Data Retention Settings</h1>
+            <p>GDPR-compliant data retention management and legal holds</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Statistics Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-sessions">-</div>
+                <div class="stat-label">Total Sessions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="sessions-purged">-</div>
+                <div class="stat-label">Sessions Purged</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="active-holds">-</div>
+                <div class="stat-label">Active Legal Holds</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pending-exports">-</div>
+                <div class="stat-label">Pending Exports</div>
+            </div>
+        </div>
+        
+        <!-- Retention Policy Settings -->
+        <div class="card">
+            <h2>Retention Policy Configuration</h2>
+            <div id="policy-status" class="status-badge status-disabled">Loading...</div>
+            
+            <form id="retention-form" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="retention-enabled" name="retention_policy_enabled">
+                        <span>Enable Automatic Data Retention</span>
+                    </label>
+                    <p class="info-text">
+                        When enabled, sessions older than the retention period will be automatically purged.
+                        Legal holds and pending exports will be respected.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="retention-days">Retention Period (days)</label>
+                    <input type="number" id="retention-days" name="retention_period_days" 
+                           min="1" max="3650" value="90">
+                    <p class="info-text">
+                        Sessions will be retained for this many days before automatic purging. 
+                        Must be at least 1 day. Recommended: 90 days.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Last Purge</label>
+                    <p id="last-purge" class="info-text">-</p>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+            
+            <div class="alert alert-info" style="margin-top: 20px;">
+                <strong>Scheduled Purge:</strong> <span id="next-purge">Calculating...</span><br>
+                <small>Automatic purge runs daily at 3:00 AM UTC</small>
+            </div>
+        </div>
+        
+        <!-- Manual Purge -->
+        <div class="card">
+            <h2>Manual Purge</h2>
+            <p class="info-text">
+                Manually trigger a retention purge for testing or immediate compliance requirements.
+                This respects all legal holds and pending exports.
+            </p>
+            
+            <div style="margin-top: 20px;">
+                <label class="checkbox-label" style="margin-bottom: 10px;">
+                    <input type="checkbox" id="dry-run">
+                    <span>Dry run - show what would be deleted without actually deleting</span>
+                </label>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-danger" onclick="runManualPurge(true)">Test (Dry Run)</button>
+                <button class="btn btn-danger" onclick="runManualPurge(false)">Run Purge Now</button>
+            </div>
+            
+            <div id="purge-result" class="api-response" style="display: none;"></div>
+        </div>
+        
+        <!-- Legal Holds -->
+        <div class="card">
+            <h2>Legal Holds</h2>
+            <p class="info-text">
+                Create legal holds to prevent specific sessions from being automatically purged.
+                Used for litigation, investigations, or audit requirements.
+            </p>
+            
+            <table id="legal-holds-table">
+                <thead>
+                    <tr>
+                        <th>Session</th>
+                        <th>Reason</th>
+                        <th>Reference ID</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+            
+            <div id="no-legal-holds" class="empty-state" style="display: none;">
+                No active legal holds
+            </div>
+            
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="openLegalHoldModal()">
+                + Create Legal Hold
+            </button>
+        </div>
+        
+        <!-- Export Jobs -->
+        <div class="card">
+            <h2>Export Jobs</h2>
+            <p class="info-text">
+                View and manage GDPR data export jobs. Pending exports prevent automatic purging
+                of associated sessions.
+            </p>
+            
+            <table id="export-jobs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Sessions</th>
+                        <th>Format</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+            
+            <div id="no-exports" class="empty-state" style="display: none;">
+                No export jobs found
+            </div>
+        </div>
+        
+        <!-- Audit Log -->
+        <div class="card">
+            <h2>Retention Audit Log</h2>
+            <p class="info-text">
+                Review all retention-related actions including purges, exports, legal holds,
+                and settings changes.
+            </p>
+            
+            <div style="margin-bottom: 16px;">
+                <button class="btn btn-secondary" onclick="exportAuditLog()">Export CSV</button>
+            </div>
+            
+            <table id="audit-log-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>User</th>
+                        <th>Session</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated via JS -->
+                </tbody>
+            </table>
+            
+            <div id="no-audit" class="empty-state" style="display: none;">
+                No audit entries found
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Legal Hold Modal -->
+    <div id="legal-hold-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Legal Hold</h3>
+            </div>
+            <div class="modal-body">
+                <form id="legal-hold-form">
+                    <div class="form-group">
+                        <label for="hold-session-id">Session ID</label>
+                        <input type="text" id="hold-session-id" required placeholder="Enter session UUID">
+                    </div>
+                    <div class="form-group">
+                        <label for="hold-reason">Reason</label>
+                        <textarea id="hold-reason" required rows="3" placeholder="Enter reason for legal hold"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="hold-reference">Reference ID (optional)</label>
+                        <input type="text" id="hold-reference" placeholder="e.g., CASE-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="hold-expires">Expiration Date (optional)</label>
+                        <input type="datetime-local" id="hold-expires">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeLegalHoldModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitLegalHold()">Create Hold</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin + '/api/v1/retention';
+        const USER_ID = new URLSearchParams(window.location.search).get('user_id') || 'current';
+        
+        // Load settings on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            loadLegalHolds();
+            loadExportJobs();
+            loadAuditLog();
+            updateStats();
+        });
+        
+        // Load retention settings
+        async function loadSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/settings?user_id=${USER_ID}`);
+                const data = await response.json();
+                
+                document.getElementById('retention-enabled').checked = data.retention_policy_enabled;
+                document.getElementById('retention-days').value = data.retention_period_days;
+                document.getElementById('last-purge').textContent = data.last_purge_at 
+                    ? new Date(data.last_purge_at).toLocaleString() 
+                    : 'Never';
+                
+                const statusBadge = document.getElementById('policy-status');
+                if (data.retention_policy_enabled) {
+                    statusBadge.textContent = 'Enabled';
+                    statusBadge.className = 'status-badge status-enabled';
+                    
+                    if (data.next_scheduled_purge) {
+                        document.getElementById('next-purge').textContent = 
+                            new Date(data.next_scheduled_purge).toLocaleString();
+                    } else {
+                        document.getElementById('next-purge').textContent = 'Pending first run';
+                    }
+                } else {
+                    statusBadge.textContent = 'Disabled';
+                    statusBadge.className = 'status-badge status-disabled';
+                    document.getElementById('next-purge').textContent = 'Automatic purge disabled';
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+        
+        // Save settings
+        document.getElementById('retention-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const settings = {
+                retention_policy_enabled: document.getElementById('retention-enabled').checked,
+                retention_period_days: parseInt(document.getElementById('retention-days').value)
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/settings?user_id=${USER_ID}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    alert('Settings saved successfully');
+                    loadSettings();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to save settings: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                alert('Failed to save settings');
+            }
+        });
+        
+        // Load legal holds
+        async function loadLegalHolds() {
+            try {
+                const response = await fetch(`${API_BASE}/legal-holds?user_id=${USER_ID}`);
+                const holds = await response.json();
+                
+                const tbody = document.getElementById('legal-holds-table').querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (holds.length === 0) {
+                    document.getElementById('no-legal-holds').style.display = 'block';
+                    document.getElementById('legal-holds-table').style.display = 'none';
+                    return;
+                }
+                
+                document.getElementById('no-legal-holds').style.display = 'none';
+                document.getElementById('legal-holds-table').style.display = 'table';
+                
+                holds.forEach(hold => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${hold.session_id.substring(0, 8)}...</td>
+                        <td>${escapeHtml(hold.reason)}</td>
+                        <td>${hold.reference_id || '-'}</td>
+                        <td>${new Date(hold.created_at).toLocaleDateString()}</td>
+                        <td>${hold.expires_at ? new Date(hold.expires_at).toLocaleDateString() : 'Never'}</td>
+                        <td>${hold.is_active ? 'Active' : 'Inactive'}</td>
+                        <td><button class="btn btn-secondary" onclick="deactivateHold('${hold.id}')">Remove</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load legal holds:', error);
+            }
+        }
+        
+        // Load export jobs
+        async function loadExportJobs() {
+            try {
+                const response = await fetch(`${API_BASE}/exports?user_id=${USER_ID}`);
+                const jobs = await response.json();
+                
+                const tbody = document.getElementById('export-jobs-table').querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (jobs.length === 0) {
+                    document.getElementById('no-exports').style.display = 'block';
+                    document.getElementById('export-jobs-table').style.display = 'none';
+                    return;
+                }
+                
+                document.getElementById('no-exports').style.display = 'none';
+                document.getElementById('export-jobs-table').style.display = 'table';
+                
+                jobs.forEach(job => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${job.id.substring(0, 8)}...</td>
+                        <td>${job.session_ids.length}</td>
+                        <td>${job.format.toUpperCase()}</td>
+                        <td>${job.status}</td>
+                        <td>${new Date(job.created_at).toLocaleDateString()}</td>
+                        <td>${job.expires_at ? new Date(job.expires_at).toLocaleDateString() : '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load export jobs:', error);
+            }
+        }
+        
+        // Load audit log
+        async function loadAuditLog() {
+            try {
+                const response = await fetch(`${API_BASE}/audit-log?limit=20`);
+                const logs = await response.json();
+                
+                const tbody = document.getElementById('audit-log-table').querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (logs.length === 0) {
+                    document.getElementById('no-audit').style.display = 'block';
+                    document.getElementById('audit-log-table').style.display = 'none';
+                    return;
+                }
+                
+                document.getElementById('no-audit').style.display = 'none';
+                document.getElementById('audit-log-table').style.display = 'table';
+                
+                logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(log.created_at).toLocaleString()}</td>
+                        <td>${log.action}</td>
+                        <td>${log.user_id ? log.user_id.substring(0, 8) + '...' : '-'}</td>
+                        <td>${log.session_id ? log.session_id.substring(0, 8) + '...' : '-'}</td>
+                        <td>${escapeHtml(JSON.stringify(log.details).substring(0, 50))}...</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Failed to load audit log:', error);
+            }
+        }
+        
+        // Update stats
+        async function updateStats() {
+            // These would need actual API endpoints
+            document.getElementById('total-sessions').textContent = '-';
+            document.getElementById('sessions-purged').textContent = '-';
+            document.getElementById('active-holds').textContent = 
+                document.querySelectorAll('#legal-holds-table tbody tr').length || '-';
+            document.getElementById('pending-exports').textContent = 
+                document.querySelectorAll('#export-jobs-table tbody tr').length || '-';
+        }
+        
+        // Run manual purge
+        async function runManualPurge(dryRun) {
+            const resultDiv = document.getElementById('purge-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Running purge...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/purge?user_id=${USER_ID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dry_run: dryRun, force: false })
+                });
+                
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (!dryRun) {
+                    loadSettings();
+                    loadAuditLog();
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        // Legal hold modal
+        function openLegalHoldModal() {
+            document.getElementById('legal-hold-modal').classList.add('active');
+        }
+        
+        function closeLegalHoldModal() {
+            document.getElementById('legal-hold-modal').classList.remove('active');
+            document.getElementById('legal-hold-form').reset();
+        }
+        
+        async function submitLegalHold() {
+            const sessionId = document.getElementById('hold-session-id').value;
+            const reason = document.getElementById('hold-reason').value;
+            const referenceId = document.getElementById('hold-reference').value;
+            const expiresAt = document.getElementById('hold-expires').value;
+            
+            if (!sessionId || !reason) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/legal-holds?user_id=${USER_ID}&created_by=${USER_ID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        reason: reason,
+                        reference_id: referenceId || null,
+                        expires_at: expiresAt || null
+                    })
+                });
+                
+                if (response.ok) {
+                    closeLegalHoldModal();
+                    loadLegalHolds();
+                    loadAuditLog();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to create hold: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to create legal hold:', error);
+                alert('Failed to create legal hold');
+            }
+        }
+        
+        async function deactivateHold(holdId) {
+            if (!confirm('Are you sure you want to remove this legal hold?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/legal-holds/${holdId}?user_id=${USER_ID}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadLegalHolds();
+                    loadAuditLog();
+                } else {
+                    const error = await response.json();
+                    alert('Failed to remove hold: ' + (error.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to remove legal hold:', error);
+            }
+        }
+        
+        // Export audit log
+        async function exportAuditLog() {
+            window.open(`${API_BASE}/audit-log/export`, '_blank');
+        }
+        
+        // Utility
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Close modal on outside click
+        document.getElementById('legal-hold-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('legal-hold-modal')) {
+                closeLegalHoldModal();
+            }
+        });
+    </script>
+</body>
+</html>
